@@ -1,6 +1,6 @@
 # Thalamus: Parallel Refinement and Flow Control for Real-Time Agentic Cognition
 
-**Authors:** Mark “Rizzn” Hopkins — Principal Engineer — mark@rizzn.com, SanctumOS · Athena Vernal — Research Lead — athena@rizzn.com, SanctumOS · John Casaretto — Co‑Founder, BlackCert — john@blackcert.com
+**Authors:** Mark “Rizzn” Hopkins — Principal Engineer — mark@rizzn.com, Animus · Athena Vernal — Research Lead — athena@rizzn.com, Animus · John Casaretto — Co‑Founder, BlackCert — john@blackcert.com
 
 ---
 
