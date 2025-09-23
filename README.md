@@ -373,8 +373,6 @@ def omi_webhook():
 
 ### 8.2 Example Transformation
 | From Cochlea (raw) | Thalamus (refined) | Notes |
-|---|---|---|
-| `"uh testing testing"` (SPEAKER_0, 0.0–2.74s) | `"Testing. Testing."` (SPEAKER_0, 0.0–2.74s) | filler dropped, punctuation repaired |
 
 *Figure 3: Example raw vs. refined transcript segment.*
 
@@ -399,7 +397,7 @@ cerebellum_worker():
 **Raw (first three records of session):**
 
 | Raw Idx | Speaker | Time (s) | Text | Timestamp |
-|---:|---|---|---|---|
+|---:---|
 | 0 | SPEAKER_0 (0) | 0.00–2.74 | Testing. Testing. Or do we have live connection? | 2025-03-26T22:48:11.021743Z |
 | 1 | SPEAKER_0 (0) | 4.22–5.84 | Hello. Hello. Testing. Testing. | 2025-03-26T22:48:11.917772Z |
 | 2 | SPEAKER_0 (0) | 8.51–9.01 | Okay. | 2025-03-26T22:48:14.865628Z |
@@ -427,68 +425,9 @@ cerebellum_worker():
 
 **Figure 4 (placeholder):** *Three-pane TUI screenshot with arrows overlaid: highlight→Cerebellum, Cerebellum→Prime (incoming), Prime→Tool/Memory.*
 
-### 8.3 Pseudocode for Flow Control and Escalation
-```text
-on_raw_segment(event):
-  enqueue(event.segment)
-
-cerebellum_worker():
-  while queue.not_empty():
-    seg = dequeue_one()
-    maybe_trigger_summarize()
-    if escalation_required(seg):
-        refined = get_refined(seg.session_id)
-        send_to_prime(refined)
-    else:
-        call_cerebellum(seg)
-```
-*Figure 2: Queue-based pacing with explicit escalation to Prime Agent.*
-
-### 8.4 Full Before/After with Provenance (from `raw_data_log.json`)
-**Raw (first three records of session):**
-
-| Raw Idx | Speaker | Time (s) | Text | Timestamp |
-|---:|---|---|---|---|
-| 0 | SPEAKER_0 (0) | 0.00–2.74 | Testing. Testing. Or do we have live connection? | 2025-03-26T22:48:11.021743Z |
-| 1 | SPEAKER_0 (0) | 4.22–5.84 | Hello. Hello. Testing. Testing. | 2025-03-26T22:48:11.917772Z |
-| 2 | SPEAKER_0 (0) | 8.51–9.01 | Okay. | 2025-03-26T22:48:14.865628Z |
-
-**Refined (constructed by Thalamus Phase 1/2 grouping):**
-```json
-{
-  "session_id": "jTbLZFVyJjduPPvf0KQDqqPYhyU2",
-  "speaker": "SPEAKER_0",
-  "speaker_id": 0,
-  "start": 0.0,
-  "end": 9.01,
-  "text": "Testing. Testing. Or do we have live connection? Hello. Hello. Testing. Testing. Okay.",
-  "source_segments": [0, 1, 2]
-}
-```
-*Provenance:* `source_segments` maps the refined record to the raw indices listed above; in the database, these correspond to ingestion-time primary keys for auditable backtracking.
-
 ---|---|---|
-| `"uh testing testing"` (SPEAKER_0, 0.0–2.74s) | `"Testing. Testing."` (SPEAKER_0, 0.0–2.74s) | filler dropped, punctuation repaired |
 
-*Figure 1: Example raw vs. refined transcript segment.*
 
-### 8.3 Pseudocode for Flow Control and Escalation
-```text
-on_raw_segment(event):
-  enqueue(event.segment)
-
-cerebellum_worker():
-  while queue.not_empty():
-    seg = dequeue_one()
-    maybe_trigger_summarize()
-    if escalation_required(seg):
-        refined = get_refined(seg.session_id)
-        send_to_prime(refined)
-    else:
-        call_cerebellum(seg)
-```
-
-*Figure 2: Queue-based pacing with explicit escalation to Prime Agent.*
 
 ---
 
