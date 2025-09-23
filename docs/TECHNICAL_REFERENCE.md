@@ -54,7 +54,7 @@ The application uses SQLite with the following tables:
 ### Setup
 1. Clone the repository:
 ```bash
-git clone https://github.com/sanctumos/thalamus.git
+git clone https://github.com/animusos/thalamus.git
 cd thalamus
 ```
 

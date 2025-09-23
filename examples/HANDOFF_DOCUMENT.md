@@ -10,7 +10,7 @@
 
 ### Project Structure
 ```
-c:\projects\sanctum\thalamus\
+c:\projects\animus\thalamus\
 ├── Core Application Files
 │   ├── thalamus_app.py          # Main data ingestion application
 │   ├── transcript_refiner.py    # AI-powered transcript refinement engine
@@ -506,7 +506,7 @@ refresh.bat  # Windows
 ## Contact & Maintenance
 
 ### Repository Information
-- **Location**: `c:\projects\sanctum\thalamus\`
+- **Location**: `c:\projects\animus\thalamus\`
 - **Version**: 1.0.0
 - **Last Updated**: January 2025
 - **Status**: Production Ready

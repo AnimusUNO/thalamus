@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Sanctum Cognitive UI Demo - Textual TUI Version
+Animus Cognitive UI Demo - Textual TUI Version
 A native terminal interface representing cognitive AI layers.
 
 Copyright (C) 2025 Mark "Rizzn" Hopkins, Athena Vernal, John Casaretto
@@ -69,7 +69,7 @@ class SSHLoginSimulator:
             "  ╚═══════════════════════════════════════════════════════════════════════╝",
             "",
             "  [CLASSIFIED] Remote Access Terminal",
-            "  Connected to: sanctum-core-01.secure.local (10.0.0.100)",
+            "  Connected to: animus-core-01.secure.local (10.0.0.100)",
             "  Session ID: SSH-2024-12-19-001337",
             "",
             "  WARNING: This system is monitored. Unauthorized access is prohibited.",
@@ -99,7 +99,7 @@ class SSHLoginSimulator:
         self.app.pop_screen()
         
         # Update title and start the main demo
-        self.app.title = "Sanctum Cognitive UI Demo"
+        self.app.title = "Animus Cognitive UI Demo"
         self.app.set_timer(1.0, self.app.event_engine.start_demo)
 
 class SSHLoginScreen(Screen):
@@ -140,10 +140,10 @@ class SSHLoginScreen(Screen):
         
         # Initial connection messages
         connection_msgs = [
-            "Connecting to sanctum-core-01.secure.local...",
+            "Connecting to animus-core-01.secure.local...",
             "Connection established.",
             "Server fingerprint: SHA256:3f7a8b2c9d1e6f4a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a",
-            "Warning: Permanently added 'sanctum-core-01.secure.local' (RSA) to the list of known hosts.",
+            "Warning: Permanently added 'animus-core-01.secure.local' (RSA) to the list of known hosts.",
             "",
         ]
         
@@ -808,7 +808,7 @@ class MemoryPane(ScrollView):
         if TEST_MODE:
             print(f"[DEBUG] Memory block mounted, total blocks: {len(self.memory_blocks)}")
 
-class SanctumApp(App):
+class AnimusApp(App):
     """Main Textual application"""
     
     CSS = """
@@ -900,7 +900,7 @@ class SanctumApp(App):
 
     """
     
-    TITLE = "Sanctum Cognitive UI Demo"
+    TITLE = "Animus Cognitive UI Demo"
     
     def __init__(self):
         super().__init__()
@@ -924,7 +924,7 @@ class SanctumApp(App):
     
     def on_mount(self):
         """Initialize the application"""
-        self.title = "Sanctum Security Suite - Remote Access"
+        self.title = "Animus Security Suite - Remote Access"
         if TEST_MODE:
             print("[TEST] App mounted, starting SSH login...")
         
@@ -1032,7 +1032,7 @@ def main():
     """Main entry point"""
     global TEST_MODE, AUTO_CLOSE, DEBUG_VISUAL, SCREENSHOT_MODE
     
-    parser = argparse.ArgumentParser(description="Sanctum Cognitive UI Demo - TUI Version")
+    parser = argparse.ArgumentParser(description="Animus Cognitive UI Demo - TUI Version")
     parser.add_argument("--test", action="store_true", help="Run in test mode")
     parser.add_argument("--auto-close", action="store_true", help="Auto-close after demo")
     parser.add_argument("--debug-visual", action="store_true", help="Enable visual debugging")
@@ -1049,7 +1049,7 @@ def main():
         print(f"[TEST] Starting TUI version with options: test={TEST_MODE}, auto_close={AUTO_CLOSE}")
     
     # Run the Textual app
-    app = SanctumApp()
+    app = AnimusApp()
     app.run()
 
 if __name__ == "__main__":

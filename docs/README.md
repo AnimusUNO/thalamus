@@ -93,7 +93,7 @@ For questions about:
 
 ## 🔗 External Resources
 
-- **SanctumOS**: The broader middleware ecosystem
+- **AnimusOS**: The broader middleware ecosystem
 - **Cochlea Schema**: JSON event format specification
 - **OpenAI API**: AI text refinement capabilities
 - **Textual**: TUI framework for the Forensiq demo

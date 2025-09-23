@@ -81,7 +81,7 @@ Modern agentic AI systems require both immediacy and structure in their perceptu
 ---
 
 ## 2. Related Work, Lineage, and Neuro-Inspired Design
-The design of Thalamus is inspired by the human brain, where raw sensory input is processed at multiple speeds: e.g., fast “movement detected” signals vs. slower “that is a dog” interpretations. Technically, Thalamus draws lineage from the **Omi** project’s webhook architecture. Its data schema has been generalized and formalized as **Cochlea**, a standalone server producing structured JSON segments. Thalamus is also situated alongside other Sanctum middleware: **Cerebellum** (reflex processing, summarization, and escalation) and **Broca** (digital-to-digital communication middleware).
+The design of Thalamus is inspired by the human brain, where raw sensory input is processed at multiple speeds: e.g., fast “movement detected” signals vs. slower “that is a dog” interpretations. Technically, Thalamus draws lineage from the **Omi** project’s webhook architecture. Its data schema has been generalized and formalized as **Cochlea**, a standalone server producing structured JSON segments. Thalamus is also situated alongside other Animus middleware: **Cerebellum** (reflex processing, summarization, and escalation) and **Broca** (digital-to-digital communication middleware).
 
 ### 2.1 Neuro-Inspired Design
 Biological thalamic pathways illustrate why the architecture matters: the brain routes raw, low-latency signals directly to reflex centers, while parallel cortical layers refine and contextualize sensory input. This ensures survival-level reactions occur without delay, but more structured interpretations are available when needed. Thalamus mirrors this by separating fast reflex delivery (to Cerebellum) from slower semantic refinement (Phases 1 and 2). The design thus builds computational “RAM and cache” layers into the system, allowing higher-order agents to scale without waiting for full semantic clarity.
@@ -91,7 +91,7 @@ Biological thalamic pathways illustrate why the architecture matters: the brain 
 - **Letta (agent framework):** summarization, memory stratification, and sub-agent orchestration informing Cerebellum/Prime interactions.
 - **LiveKit (real-time media):** representative transport for conversational audio routing into Cochlea.
 - **JSON Schema (2020-12):** formal basis for the Cochlea compatibility contract.
-- **Sanctum Middleware (Broca/Thalamus/Cerebellum):** prior internal notes on routing, flow-control, and escalation patterns.
+- **Animus Middleware (Broca/Thalamus/Cerebellum):** prior internal notes on routing, flow-control, and escalation patterns.
 
 
 ---
@@ -262,7 +262,7 @@ Cochlea → Thalamus → Broca → Prime Agent
 ```
 - **Cochlea**: takes in audio (via LiveKit or other STT engines).
 - **Thalamus**: cleans, refines, and structures raw transcripts.
-- **Broca**: routes text events across Sanctum’s communication channels.
+- **Broca**: routes text events across Animus's communication channels.
 - **Prime Agent**: consumes the refined stream as if it were chat, generating responses.
 - **Voicebox**: on the return leg, converts agent replies back into speech.
 
