@@ -23,11 +23,14 @@ from datetime import datetime
 from contextlib import contextmanager
 import json
 from typing import List, Dict, Optional, Union, Any
-import logging
+from logging_config import setup_logging, get_logger
+
+# Initialize centralized logging
+setup_logging()
+logger = get_logger(__name__)
 
 import os
 DB_PATH = os.path.join(os.path.dirname(__file__), 'thalamus.db')
-logger = logging.getLogger(__name__)
 
 @contextmanager
 def get_db():

@@ -20,7 +20,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import time
-import logging
 import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
@@ -32,18 +31,11 @@ from database import (
 )
 from openai_wrapper import call_openai_text
 import re
+from logging_config import setup_logging, get_logger
 
-# Configure logging with more detailed format
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S',
-    handlers=[
-        logging.FileHandler(os.path.join(os.path.dirname(__file__), 'transcript_refiner.log')),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# Initialize centralized logging
+setup_logging()
+logger = get_logger(__name__)
 
 class TranscriptRefiner:
     def __init__(self, min_segments_for_diarization: int = 4, inactivity_seconds: int = 120) -> None:

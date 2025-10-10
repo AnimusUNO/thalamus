@@ -21,12 +21,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import os
 import json
 from openai import OpenAI
-import logging
 from dotenv import load_dotenv
+from logging_config import setup_logging, get_logger
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Initialize centralized logging
+setup_logging()
+logger = get_logger(__name__)
 
 # Load environment variables
 load_dotenv()

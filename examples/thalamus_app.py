@@ -20,18 +20,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import time
-import logging
 from datetime import datetime, UTC
 from typing import Dict, Any, List
 from database import get_or_create_session, get_or_create_speaker, insert_segment
+from logging_config import setup_logging, get_logger
 
-# Configure logging with more detailed format
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+# Initialize centralized logging
+setup_logging()
+logger = get_logger(__name__)
 
 def process_event(event: Dict[str, Any]) -> None:
     """Process a single event and store it in the database."""

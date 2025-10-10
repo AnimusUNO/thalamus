@@ -21,17 +21,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 from flask import Flask, request
 from typing import Tuple, Dict, Any
 import json
-import logging
 import os
 import time
 from datetime import datetime
 from werkzeug.exceptions import RequestEntityTooLarge
 from response_utils import create_success_response, create_error_response, create_validation_error_response
 from database import get_db
+from logging_config import setup_logging, get_logger
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Initialize centralized logging
+setup_logging()
+logger = get_logger(__name__)
 
 # Configure request size limits (configurable via environment variables)
 MAX_REQUEST_SIZE_MB = int(os.getenv('MAX_REQUEST_SIZE_MB', '10'))

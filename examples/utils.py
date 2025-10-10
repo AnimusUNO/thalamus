@@ -22,8 +22,12 @@ import os
 import requests
 import json
 import re
-import logging
 from typing import Optional, Tuple, Dict, Any
+from logging_config import setup_logging, get_logger
+
+# Initialize centralized logging
+setup_logging()
+logger = get_logger(__name__)
 
 def get_image_dimensions(image_path: str) -> Optional[Tuple[int, int]]:
     """
@@ -34,7 +38,7 @@ def get_image_dimensions(image_path: str) -> Optional[Tuple[int, int]]:
         with Image.open(image_path) as img:
             return img.size  # returns (width, height)
     except ImportError:
-        logging.warning("PIL not installed. Image dimension functionality not available.")
+        logger.warning("PIL not installed. Image dimension functionality not available.")
         return None
     
 def load_prompt(filename: str, prompts_dir: str = "./prompts") -> str:
@@ -44,7 +48,7 @@ def load_prompt(filename: str, prompts_dir: str = "./prompts") -> str:
         with open(prompt_path, 'r', encoding='utf-8') as file:
             return file.read()
     except FileNotFoundError:
-        logging.error("Prompt file '%s' not found in '%s'.", filename, prompts_dir)
+        logger.error("Prompt file '%s' not found in '%s'.", filename, prompts_dir)
         raise
 
 
@@ -103,7 +107,7 @@ def clean_response(response: str, return_dict: bool = False) -> str | Dict[str, 
                 return parsed_json if return_dict else match.group(1)
             except json.JSONDecodeError:
                 pass
-        logging.error("Failed to parse JSON: %s", e)
+        logger.error("Failed to parse JSON: %s", e)
         raise e
 
 
