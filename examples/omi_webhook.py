@@ -23,8 +23,11 @@ from typing import Tuple, Dict, Any
 import json
 import logging
 import os
+import time
+from datetime import datetime
 from werkzeug.exceptions import RequestEntityTooLarge
 from response_utils import create_success_response, create_error_response, create_validation_error_response
+from database import get_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +38,9 @@ MAX_REQUEST_SIZE_MB = int(os.getenv('MAX_REQUEST_SIZE_MB', '10'))
 MAX_JSON_SIZE_MB = int(os.getenv('MAX_JSON_SIZE_MB', '5'))
 MAX_REQUEST_SIZE = MAX_REQUEST_SIZE_MB * 1024 * 1024  # Convert to bytes
 MAX_JSON_SIZE = MAX_JSON_SIZE_MB * 1024 * 1024  # Convert to bytes
+
+# Application startup time for uptime tracking
+START_TIME = time.time()
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = MAX_REQUEST_SIZE
@@ -131,6 +137,97 @@ def omi_webhook() -> Tuple[Dict[str, Any], int]:
 def ping() -> Tuple[Dict[str, Any], int]:
     """Health check endpoint."""
     return create_success_response("Service is healthy", {"status": "ok"})
+
+@app.route("/health", methods=["GET"])
+def health_check() -> Tuple[Dict[str, Any], int]:
+    """Basic health check endpoint."""
+    uptime_seconds = time.time() - START_TIME
+    return create_success_response(
+        "Service is healthy",
+        {
+            "status": "healthy",
+            "uptime_seconds": uptime_seconds,
+            "version": "1.0.0",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+@app.route("/health/detailed", methods=["GET"])
+def detailed_health_check() -> Tuple[Dict[str, Any], int]:
+    """Detailed health check with dependency status."""
+    health_status = {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "1.0.0",
+        "uptime_seconds": time.time() - START_TIME,
+        "checks": {}
+    }
+    
+    # Database connectivity check
+    try:
+        with get_db() as conn:
+            conn.execute("SELECT 1")
+        health_status["checks"]["database"] = "healthy"
+    except Exception as e:
+        health_status["checks"]["database"] = f"unhealthy: {str(e)}"
+        health_status["status"] = "unhealthy"
+    
+    # Environment variables check
+    required_env_vars = ["OPENAI_API_KEY"]
+    for var in required_env_vars:
+        if os.getenv(var):
+            health_status["checks"][f"env_{var}"] = "healthy"
+        else:
+            health_status["checks"][f"env_{var}"] = "unhealthy: not set"
+            health_status["status"] = "unhealthy"
+    
+    # Configuration check
+    health_status["checks"]["config"] = {
+        "max_request_size_mb": MAX_REQUEST_SIZE_MB,
+        "max_json_size_mb": MAX_JSON_SIZE_MB
+    }
+    
+    status_code = 200 if health_status["status"] == "healthy" else 503
+    return health_status, status_code
+
+@app.route("/ready", methods=["GET"])
+def readiness_check() -> Tuple[Dict[str, Any], int]:
+    """Readiness check for service discovery."""
+    try:
+        # Check database connectivity
+        with get_db() as conn:
+            conn.execute("SELECT 1")
+        
+        # Check required environment variables
+        required_env_vars = ["OPENAI_API_KEY"]
+        missing_vars = []
+        for var in required_env_vars:
+            if not os.getenv(var):
+                missing_vars.append(var)
+        
+        if missing_vars:
+            return create_error_response(
+                f"Service not ready: Missing environment variables: {', '.join(missing_vars)}",
+                503
+            )
+        
+        return create_success_response("Service is ready", {"status": "ready"})
+        
+    except Exception as e:
+        return create_error_response(f"Service not ready: {str(e)}", 503)
+
+@app.route("/metrics", methods=["GET"])
+def metrics() -> Tuple[Dict[str, Any], int]:
+    """Basic metrics endpoint for monitoring."""
+    uptime_seconds = time.time() - START_TIME
+    metrics_data = {
+        "uptime_seconds": uptime_seconds,
+        "uptime_hours": uptime_seconds / 3600,
+        "max_request_size_mb": MAX_REQUEST_SIZE_MB,
+        "max_json_size_mb": MAX_JSON_SIZE_MB,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    return create_success_response("Metrics retrieved", metrics_data)
 
 if __name__ == "__main__":
     logger.info(f"Starting webhook server with size limits:")
