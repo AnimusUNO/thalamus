@@ -22,13 +22,35 @@ from flask import Flask, request
 from typing import Tuple, Dict, Any
 import json
 import logging
+import os
+from werkzeug.exceptions import RequestEntityTooLarge
 from response_utils import create_success_response, create_error_response, create_validation_error_response
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Configure request size limits (configurable via environment variables)
+MAX_REQUEST_SIZE_MB = int(os.getenv('MAX_REQUEST_SIZE_MB', '10'))
+MAX_JSON_SIZE_MB = int(os.getenv('MAX_JSON_SIZE_MB', '5'))
+MAX_REQUEST_SIZE = MAX_REQUEST_SIZE_MB * 1024 * 1024  # Convert to bytes
+MAX_JSON_SIZE = MAX_JSON_SIZE_MB * 1024 * 1024  # Convert to bytes
+
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = MAX_REQUEST_SIZE
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_large_request(e) -> Tuple[Dict[str, Any], int]:
+    """Handle requests that exceed the size limit."""
+    logger.warning(f"Request too large: {request.content_length} bytes (max: {MAX_REQUEST_SIZE} bytes)")
+    return create_error_response(
+        f"Request too large. Maximum size is {MAX_REQUEST_SIZE_MB}MB",
+        413,
+        {
+            "max_size_mb": MAX_REQUEST_SIZE_MB,
+            "received_size_bytes": request.content_length
+        }
+    )
 
 @app.route("/omi", methods=["POST"])
 def omi_webhook() -> Tuple[Dict[str, Any], int]:
@@ -45,6 +67,19 @@ def omi_webhook() -> Tuple[Dict[str, Any], int]:
             data = request.get_json(force=True)
         except json.JSONDecodeError as e:
             return create_error_response("Invalid JSON format", 400, {"json_error": str(e)})
+        
+        # Additional JSON size validation (beyond Flask's MAX_CONTENT_LENGTH)
+        json_str = json.dumps(data) if data else ""
+        if len(json_str.encode('utf-8')) > MAX_JSON_SIZE:
+            logger.warning(f"JSON payload too large: {len(json_str)} bytes (max: {MAX_JSON_SIZE} bytes)")
+            return create_error_response(
+                f"JSON payload too large. Maximum size is {MAX_JSON_SIZE_MB}MB",
+                413,
+                {
+                    "max_json_size_mb": MAX_JSON_SIZE_MB,
+                    "received_json_size_bytes": len(json_str.encode('utf-8'))
+                }
+            )
         
         # Validate required fields
         field_errors = {}
@@ -98,4 +133,7 @@ def ping() -> Tuple[Dict[str, Any], int]:
     return create_success_response("Service is healthy", {"status": "ok"})
 
 if __name__ == "__main__":
+    logger.info(f"Starting webhook server with size limits:")
+    logger.info(f"  - Max request size: {MAX_REQUEST_SIZE_MB}MB")
+    logger.info(f"  - Max JSON size: {MAX_JSON_SIZE_MB}MB")
     app.run(host="0.0.0.0", port=5000)
