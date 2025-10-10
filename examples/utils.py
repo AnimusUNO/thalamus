@@ -23,8 +23,9 @@ import requests
 import json
 import re
 import logging
+from typing import Optional, Tuple, Dict, Any
 
-def get_image_dimensions(image_path):
+def get_image_dimensions(image_path: str) -> Optional[Tuple[int, int]]:
     """
     Returns (width, height) of a given image file.
     """
@@ -47,7 +48,7 @@ def load_prompt(filename: str, prompts_dir: str = "./prompts") -> str:
         raise
 
 
-def clean_response(response: str, return_dict: bool = False) -> str | dict:
+def clean_response(response: str, return_dict: bool = False) -> str | Dict[str, Any]:
     """
     Cleans and processes a JSON response safely.
 
@@ -106,7 +107,7 @@ def clean_response(response: str, return_dict: bool = False) -> str | dict:
         raise e
 
 
-def get_image_url(image_input):
+def get_image_url(image_input: str) -> str:
     """
     If the image_input is a URL, return it. Otherwise, ensure the file exists and upload it.
     """
@@ -116,7 +117,7 @@ def get_image_url(image_input):
         raise FileNotFoundError(f"Local file not found: {image_input}")
     return upload_local_file(image_input)
 
-def upload_local_file(file_path):
+def upload_local_file(file_path: str) -> str:
     """
     Upload a local file to a temporary file hosting service and return the URL.
     """

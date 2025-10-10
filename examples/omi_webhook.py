@@ -19,11 +19,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
 from flask import Flask, request
+from typing import Tuple
 
 app = Flask(__name__)
 
 @app.route("/omi", methods=["POST"])
-def omi_webhook():
+def omi_webhook() -> Tuple[str, int]:
     print(f"🔎 Incoming POST: {request.method} {request.url}")
 
     try:

@@ -22,7 +22,7 @@ import sqlite3
 from datetime import datetime
 from contextlib import contextmanager
 import json
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union, Any
 import logging
 
 import os
@@ -57,7 +57,7 @@ def get_db():
     finally:
         conn.close()
 
-def init_db():
+def init_db() -> None:
     """Initialize the database with required tables."""
     try:
         with get_db() as conn:
@@ -130,7 +130,7 @@ def init_db():
         logger.error(f"Error initializing database: {e}")
         raise
 
-def get_or_create_session(session_id):
+def get_or_create_session(session_id: str) -> int:
     """Get or create a session and return its ID."""
     with get_db() as conn:
         cur = conn.cursor()
@@ -144,7 +144,7 @@ def get_or_create_session(session_id):
         conn.commit()
         return cur.lastrowid
 
-def get_or_create_speaker(speaker_id, speaker_name, is_user=False):
+def get_or_create_speaker(speaker_id: int, speaker_name: str, is_user: bool = False) -> int:
     """Get or create a speaker and return their ID."""
     with get_db() as conn:
         cur = conn.cursor()
@@ -163,7 +163,7 @@ def get_or_create_speaker(speaker_id, speaker_name, is_user=False):
         conn.commit()
         return cur.lastrowid
 
-def insert_segment(session_id, speaker_id, text, start_time, end_time, log_timestamp):
+def insert_segment(session_id: int, speaker_id: int, text: str, start_time: float, end_time: float, log_timestamp: datetime) -> int:
     """Insert a new segment."""
     with get_db() as conn:
         cur = conn.cursor()
@@ -273,7 +273,7 @@ def insert_refined_segment(
         logger.error(f"Error inserting refined segment: {e}")
         raise
 
-def get_refined_segments(session_id=None):
+def get_refined_segments(session_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """Get refined segments."""
     with get_db() as conn:
         cur = conn.cursor()
@@ -287,7 +287,7 @@ def get_refined_segments(session_id=None):
             cur.execute('SELECT * FROM refined_segments ORDER BY start_time')
         return cur.fetchall()
 
-def get_locked_segments(session_id, limit=None):
+def get_locked_segments(session_id: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
     """Get the most recent locked refined segments for a session."""
     with get_db() as conn:
         cur = conn.cursor()
@@ -338,7 +338,7 @@ def update_refined_segment(segment_id: int, **kwargs) -> bool:
         logger.error(f"Error updating refined segment {segment_id}: {e}")
         return False
 
-def get_refined_segment(segment_id: int) -> dict:
+def get_refined_segment(segment_id: int) -> Optional[Dict[str, Any]]:
     """Get a single refined segment by ID."""
     try:
         with get_db() as conn:
@@ -378,7 +378,7 @@ def get_refined_segment(segment_id: int) -> dict:
         logger.error(f"Error getting refined segment {segment_id}: {e}")
         return None
 
-def get_active_sessions():
+def get_active_sessions() -> List[Dict[str, Any]]:
     """Get all active sessions that have unprocessed segments."""
     try:
         with get_db() as conn:

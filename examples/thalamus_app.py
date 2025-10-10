@@ -22,6 +22,7 @@ import json
 import time
 import logging
 from datetime import datetime, UTC
+from typing import Dict, Any, List
 from database import get_or_create_session, get_or_create_speaker, insert_segment
 
 # Configure logging with more detailed format
@@ -32,7 +33,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def process_event(event):
+def process_event(event: Dict[str, Any]) -> None:
     """Process a single event and store it in the database."""
     try:
         # Get current event timestamp
@@ -75,7 +76,7 @@ def process_event(event):
         logger.error("Error processing event: %s", e, exc_info=True)
         raise
 
-def main():
+def main() -> None:
     try:
         # Read events from file line by line
         import os

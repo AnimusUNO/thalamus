@@ -23,6 +23,7 @@ import time
 import logging
 import os
 from datetime import datetime
+from typing import Dict, Any, List, Optional, Tuple
 from database import (
     get_unrefined_segments, insert_refined_segment,
     get_refined_segments, get_locked_segments, get_db,
@@ -31,7 +32,6 @@ from database import (
 )
 from openai_wrapper import call_openai_text
 import re
-from typing import List, Dict, Optional, Tuple
 
 # Configure logging with more detailed format
 logging.basicConfig(
@@ -46,7 +46,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class TranscriptRefiner:
-    def __init__(self, min_segments_for_diarization=4, inactivity_seconds=120):
+    def __init__(self, min_segments_for_diarization: int = 4, inactivity_seconds: int = 120) -> None:
         self.min_segments = min_segments_for_diarization
         self.sentence_endings = ['.', '!', '?', '...']
         self.inactivity_seconds = inactivity_seconds
@@ -98,7 +98,7 @@ class TranscriptRefiner:
             logger.error(f"Error processing session {session_id}: {e}")
             return False
 
-    def _finalize_group(self, segments: List[Dict], session_id: str) -> None:
+    def _finalize_group(self, segments: List[Dict[str, Any]], session_id: str) -> None:
         """Finalize a group of segments from the same speaker."""
         if not segments:
             return
@@ -130,7 +130,7 @@ class TranscriptRefiner:
             source_segments=json.dumps(source_segments)
         )
 
-    def flush_idle_sessions(self):
+    def flush_idle_sessions(self) -> None:
         """Flush any sessions that have been inactive for too long."""
         current_time = datetime.utcnow()
         for session_id, state in list(self.session_states.items()):
@@ -140,7 +140,7 @@ class TranscriptRefiner:
                 self._finalize_group(state["group"], session_id)
                 del self.session_states[session_id]
 
-    def run(self):
+    def run(self) -> None:
         """Main processing loop."""
         logger.info("Starting transcript refiner...")
         
