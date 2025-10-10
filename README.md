@@ -54,7 +54,7 @@ thalamus/
 ├── examples/                    # Reference implementations
 │   ├── forensiq_demo/          # Interactive TUI demo (main.py)
 │   │   ├── main.py             # Forensiq cognitive UI demo
-│   │   ├── requirements.txt    # Demo dependencies
+│   │   ├── requirements.txt    # Demo-specific dependencies
 │   │   └── README.md           # Demo documentation
 │   ├── thalamus_app.py         # Data ingestion application
 │   ├── transcript_refiner.py   # AI-powered transcript refinement

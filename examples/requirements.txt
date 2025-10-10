@@ -1,7 +1,0 @@
-flask==3.0.0
-python-dotenv==1.0.0
-openai==1.3.0
-sqlalchemy==2.0.23
-alembic==1.12.1
-# SQLite is included in Python standard library
-# PostgreSQL support can be added later if needed 
