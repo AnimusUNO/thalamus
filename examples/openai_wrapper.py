@@ -20,7 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import json
-import openai
+from openai import OpenAI
 import logging
 from dotenv import load_dotenv
 
@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Set OpenAI API key
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client with modern approach
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def call_openai_text(prompt: str) -> str:
     """Call OpenAI API with text prompt and return response."""
@@ -41,8 +41,8 @@ def call_openai_text(prompt: str) -> str:
         if isinstance(prompt, dict):
             prompt = json.dumps(prompt)
         
-        # Call OpenAI API
-        response = openai.chat.completions.create(
+        # Call OpenAI API using modern client
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that provides responses in valid JSON format."},
