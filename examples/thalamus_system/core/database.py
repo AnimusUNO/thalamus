@@ -30,7 +30,23 @@ setup_logging()
 logger = get_logger(__name__)
 
 import os
-DB_PATH = os.path.join(os.path.dirname(__file__), 'thalamus.db')
+from pathlib import Path
+
+# Configurable database path with environment-specific defaults
+def get_db_path():
+    """Get database path based on environment and configuration."""
+    environment = os.getenv('ENVIRONMENT', 'development').lower()
+    
+    if environment == 'test':
+        return ':memory:'  # In-memory database for testing
+    elif environment == 'production':
+        return os.getenv('THALAMUS_DB_PATH', '/var/lib/thalamus/thalamus.db')
+    else:
+        # Development - use env var or default to current location
+        return os.getenv('THALAMUS_DB_PATH', 
+                        str(Path(__file__).parent / 'thalamus.db'))
+
+DB_PATH = get_db_path()
 
 @contextmanager
 def get_db():

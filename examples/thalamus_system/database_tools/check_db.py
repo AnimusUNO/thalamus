@@ -21,11 +21,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 import sqlite3
 import os
 from datetime import datetime
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
+from database import DB_PATH
 
 def check_db():
-    # Database is now in the core directory
-    db_path = os.path.join(os.path.dirname(__file__), '..', 'core', 'thalamus.db')
-    conn = sqlite3.connect(db_path)
+    # Use configurable database path from database module
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     
