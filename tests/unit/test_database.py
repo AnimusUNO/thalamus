@@ -31,7 +31,8 @@ from thalamus_system.core.database import (
     init_db, get_db, get_or_create_session, get_or_create_speaker,
     insert_segment, get_unrefined_segments, insert_refined_segment,
     get_refined_segments, get_locked_segments, update_refined_segment,
-    get_refined_segment, get_active_sessions, add_indexes_to_existing_db
+    get_refined_segment, get_active_sessions, add_indexes_to_existing_db,
+    get_used_segment_ids
 )
 
 
@@ -200,7 +201,7 @@ class TestSegmentManagement:
         
         # Insert segment
         segment_data = sample_session_data["segments"][0]
-        log_timestamp = datetime.fromisoformat(sample_session_data["log_timestamp"].replace('Z', '+00:00'))
+        log_timestamp = datetime.fromisoformat(sample_session_data["log_timestamp"].replace('Z', ''))
         
         segment_db_id = insert_segment(
             session_id, speaker_id, segment_data["text"],
@@ -223,23 +224,28 @@ class TestSegmentManagement:
     @pytest.mark.database
     def test_get_unrefined_segments(self, test_db, sample_session_data):
         """Test retrieving unrefined segments."""
+        # Use a unique session ID for this test to avoid conflicts
+        unique_session_id = f"{sample_session_data['session_id']}_{id(self)}"
+        
         # Create session and speaker
-        session_id = get_or_create_session(sample_session_data["session_id"])
+        session_id = get_or_create_session(unique_session_id)
         speaker_id = get_or_create_speaker(1, "Test Speaker")
         
         # Insert segments
-        log_timestamp = datetime.fromisoformat(sample_session_data["log_timestamp"].replace('Z', '+00:00'))
+        log_timestamp = datetime.fromisoformat(sample_session_data["log_timestamp"].replace('Z', ''))
         for segment_data in sample_session_data["segments"]:
             insert_segment(
-                session_id, speaker_id, segment_data["text"],
+                unique_session_id, speaker_id, segment_data["text"],
                 segment_data["start_time"], segment_data["end_time"], log_timestamp
             )
         
-        # Get unrefined segments
-        segments = get_unrefined_segments()
+        # Get unrefined segments for our specific session
+        segments = get_unrefined_segments(unique_session_id)
         
-        assert len(segments) >= len(sample_session_data["segments"])
-        assert all(seg['session_id'] == sample_session_data["session_id"] for seg in segments)
+        # Since these are fresh segments, they should be unrefined
+        assert len(segments) == len(sample_session_data["segments"])
+        # Check that we have segments from our session
+        assert all(seg['session_id'] == unique_session_id for seg in segments)
     
     @pytest.mark.unit
     @pytest.mark.database
@@ -251,7 +257,7 @@ class TestSegmentManagement:
         
         # Insert raw segment first
         segment_data = sample_session_data["segments"][0]
-        log_timestamp = datetime.fromisoformat(sample_session_data["log_timestamp"].replace('Z', '+00:00'))
+        log_timestamp = datetime.fromisoformat(sample_session_data["log_timestamp"].replace('Z', ''))
         raw_segment_id = insert_segment(
             session_id, speaker_id, segment_data["text"],
             segment_data["start_time"], segment_data["end_time"], log_timestamp
@@ -289,7 +295,7 @@ class TestSegmentManagement:
         # Insert refined segment
         segment_data = sample_session_data["segments"][0]
         insert_refined_segment(
-            session_id, speaker_id, "Refined text",
+            sample_session_data["session_id"], speaker_id, "Refined text",
             segment_data["start_time"], segment_data["end_time"]
         )
         
@@ -297,6 +303,7 @@ class TestSegmentManagement:
         segments = get_refined_segments()
         
         assert len(segments) >= 1
+        # Check that we have segments from our session (session_id is the string session ID)
         assert any(seg['session_id'] == sample_session_data["session_id"] for seg in segments)
     
     @pytest.mark.unit
@@ -426,3 +433,60 @@ class TestPerformance:
         
         assert len(segments) >= 50
         # Performance check would be more detailed in integration tests
+
+
+class TestAdditionalFunctions:
+    """Test additional database functions."""
+    
+    @pytest.mark.unit
+    @pytest.mark.database
+    def test_update_refined_segment(self, test_db, sample_session_data):
+        """Test updating a refined segment."""
+        # Use unique session ID to avoid conflicts
+        unique_session_id = f"{sample_session_data['session_id']}_update_{id(self)}"
+        
+        # Create session and speaker
+        session_id = get_or_create_session(unique_session_id)
+        speaker_id = get_or_create_speaker(1, "Test Speaker")
+        
+        # Insert refined segment
+        segment_data = sample_session_data["segments"][0]
+        refined_id = insert_refined_segment(
+            unique_session_id, speaker_id, "Original text",
+            segment_data["start_time"], segment_data["end_time"]
+        )
+        
+        # Update the segment
+        success = update_refined_segment(
+            refined_id,
+            text="Updated text",
+            confidence_score=0.95,
+            metadata='{"source": "test"}'
+        )
+        
+        assert success is True
+        
+        # Verify the update
+        segments = get_refined_segments(unique_session_id)
+        assert len(segments) == 1
+        assert segments[0]["text"] == "Updated text"
+        assert segments[0]["confidence_score"] == 0.95
+        assert segments[0]["metadata"] == '{"source": "test"}'
+    
+    @pytest.mark.unit
+    @pytest.mark.database
+    def test_update_refined_segment_no_fields(self, test_db):
+        """Test updating a refined segment with no valid fields."""
+        success = update_refined_segment(999, invalid_field="test")
+        assert success is False
+    
+    @pytest.mark.unit
+    @pytest.mark.database
+    def test_get_used_segment_ids(self, test_db, sample_session_data):
+        """Test getting used segment IDs."""
+        # This function returns segment IDs that have been used in refinements
+        # Since we don't have a mechanism to automatically mark segments as used,
+        # we'll just test that the function works and returns a list
+        used_ids = get_used_segment_ids()
+        assert isinstance(used_ids, list)
+        # The function should work without errors

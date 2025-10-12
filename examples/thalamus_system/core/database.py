@@ -135,6 +135,7 @@ def init_db() -> None:
                     metadata TEXT,
                     last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     is_processing INTEGER DEFAULT 0,
+                    is_locked INTEGER DEFAULT 0,
                     FOREIGN KEY (refined_speaker_id) REFERENCES speakers (id)
                 )
             ''')
@@ -171,6 +172,9 @@ def init_db() -> None:
             
             conn.commit()
             logger.info("Database initialized with tables and performance indexes")
+            
+            # Run migration for existing databases
+            migrate_database_schema()
             
     except Exception as e:
         logger.error(f"Error initializing database: {e}")
@@ -209,8 +213,32 @@ def add_indexes_to_existing_db() -> None:
         logger.error(f"Error adding indexes to existing database: {e}")
         raise
 
+def migrate_database_schema() -> None:
+    """Migrate existing database schema to add missing columns."""
+    try:
+        with get_db() as conn:
+            cur = conn.cursor()
+            
+            # Check if is_locked column exists in refined_segments
+            cur.execute("PRAGMA table_info(refined_segments)")
+            columns = [col[1] for col in cur.fetchall()]
+            
+            if 'is_locked' not in columns:
+                cur.execute("ALTER TABLE refined_segments ADD COLUMN is_locked INTEGER DEFAULT 0")
+                logger.info("Added is_locked column to refined_segments table")
+            
+            conn.commit()
+            logger.info("Database schema migration completed")
+            
+    except Exception as e:
+        logger.error(f"Error migrating database schema: {e}")
+        raise
+
 def get_or_create_session(session_id: str) -> int:
     """Get or create a session and return its ID."""
+    if not session_id or not session_id.strip():
+        raise ValueError("Session ID cannot be empty")
+    
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute('SELECT id FROM sessions WHERE session_id = ?', (session_id,))
@@ -242,7 +270,7 @@ def get_or_create_speaker(speaker_id: int, speaker_name: str, is_user: bool = Fa
         conn.commit()
         return cur.lastrowid
 
-def insert_segment(session_id: int, speaker_id: int, text: str, start_time: float, end_time: float, log_timestamp: datetime) -> int:
+def insert_segment(session_id_str: str, speaker_id: int, text: str, start_time: float, end_time: float, log_timestamp: datetime) -> int:
     """Insert a new segment."""
     with get_db() as conn:
         cur = conn.cursor()
@@ -250,7 +278,7 @@ def insert_segment(session_id: int, speaker_id: int, text: str, start_time: floa
             INSERT INTO raw_segments 
             (session_id, speaker_id, text, start_time, end_time, timestamp)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (session_id, speaker_id, text, start_time, end_time, log_timestamp))
+        ''', (session_id_str, speaker_id, text, start_time, end_time, log_timestamp.isoformat()))
         conn.commit()
         return cur.lastrowid
 
@@ -339,7 +367,20 @@ def insert_refined_segment(
             
             # Record segment usage
             if source_segments:
-                for raw_id in json.loads(source_segments):
+                # Handle both string and integer inputs
+                if isinstance(source_segments, str):
+                    try:
+                        raw_ids = json.loads(source_segments)
+                    except json.JSONDecodeError:
+                        raw_ids = [int(source_segments)]
+                else:
+                    raw_ids = [source_segments]
+                
+                # Ensure raw_ids is a list
+                if not isinstance(raw_ids, list):
+                    raw_ids = [raw_ids]
+                
+                for raw_id in raw_ids:
                     cur.execute(
                         "INSERT OR IGNORE INTO segment_usage (raw_segment_id, refined_segment_id) VALUES (?, ?)",
                         (raw_id, segment_id)

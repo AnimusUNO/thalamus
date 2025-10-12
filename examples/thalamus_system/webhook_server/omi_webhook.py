@@ -23,8 +23,8 @@ from typing import Tuple, Dict, Any
 import json
 import os
 import time
-from datetime import datetime
-from werkzeug.exceptions import RequestEntityTooLarge
+from datetime import datetime, UTC
+from werkzeug.exceptions import RequestEntityTooLarge, BadRequest
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
 from response_utils import create_success_response, create_error_response, create_validation_error_response
@@ -60,21 +60,38 @@ def handle_large_request(e) -> Tuple[Dict[str, Any], int]:
         }
     )
 
+@app.errorhandler(BadRequest)
+def handle_bad_request(e) -> Tuple[Dict[str, Any], int]:
+    """Handle bad request errors."""
+    logger.warning(f"Bad request: {e}")
+    return create_error_response("Bad request", 400, {"error": str(e)})
+
 @app.route("/omi", methods=["POST"])
 def omi_webhook() -> Tuple[Dict[str, Any], int]:
     """Process incoming webhook data with proper HTTP status codes."""
     logger.info(f"Incoming POST: {request.method} {request.url}")
     
+    # Validate content type
+    if not request.is_json:
+        return create_error_response("Content-Type must be application/json", 400)
+    
+    # Parse JSON data with better error handling
     try:
-        # Validate content type
-        if not request.is_json:
-            return create_error_response("Content-Type must be application/json", 400)
-        
-        # Parse JSON data
-        try:
-            data = request.get_json(force=True)
-        except json.JSONDecodeError as e:
-            return create_error_response("Invalid JSON format", 400, {"json_error": str(e)})
+        data = request.get_json(force=True)
+    except RequestEntityTooLarge:
+        return create_error_response(
+            f"Request too large. Maximum size is {MAX_REQUEST_SIZE_MB}MB",
+            413,
+            {
+                "max_size_mb": MAX_REQUEST_SIZE_MB,
+                "received_size_bytes": request.content_length
+            }
+        )
+    except Exception as e:
+        logger.warning(f"JSON parsing error: {e}")
+        return create_error_response("Invalid JSON format", 400, {"json_error": str(e)})
+    
+    try:
         
         # Additional JSON size validation (beyond Flask's MAX_CONTENT_LENGTH)
         json_str = json.dumps(data) if data else ""
@@ -150,7 +167,7 @@ def health_check() -> Tuple[Dict[str, Any], int]:
             "status": "healthy",
             "uptime_seconds": uptime_seconds,
             "version": "1.0.0",
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
         }
     )
 
@@ -159,7 +176,7 @@ def detailed_health_check() -> Tuple[Dict[str, Any], int]:
     """Detailed health check with dependency status."""
     health_status = {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         "version": "1.0.0",
         "uptime_seconds": time.time() - START_TIME,
         "checks": {}
@@ -190,7 +207,7 @@ def detailed_health_check() -> Tuple[Dict[str, Any], int]:
     }
     
     status_code = 200 if health_status["status"] == "healthy" else 503
-    return health_status, status_code
+    return create_success_response("Health check completed", health_status, status_code)
 
 @app.route("/ready", methods=["GET"])
 def readiness_check() -> Tuple[Dict[str, Any], int]:
@@ -227,7 +244,7 @@ def metrics() -> Tuple[Dict[str, Any], int]:
         "uptime_hours": uptime_seconds / 3600,
         "max_request_size_mb": MAX_REQUEST_SIZE_MB,
         "max_json_size_mb": MAX_JSON_SIZE_MB,
-        "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(UTC).isoformat()
     }
     return create_success_response("Metrics retrieved", metrics_data)
 

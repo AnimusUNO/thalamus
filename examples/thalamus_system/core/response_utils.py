@@ -18,7 +18,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Dict, Any, Tuple, Optional
 
 
@@ -27,7 +27,7 @@ def create_success_response(message: str, data: Optional[Dict[str, Any]] = None,
     response = {
         "status": "success",
         "message": message,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }
     if data:
         response["data"] = data
@@ -37,9 +37,10 @@ def create_success_response(message: str, data: Optional[Dict[str, Any]] = None,
 def create_error_response(message: str, status_code: int, details: Optional[Dict[str, Any]] = None) -> Tuple[Dict[str, Any], int]:
     """Create a standardized error response."""
     response = {
-        "error": message,
+        "status": "error",
+        "message": message,
         "status_code": status_code,
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.now(UTC).isoformat()
     }
     if details:
         response["details"] = details
@@ -48,5 +49,12 @@ def create_error_response(message: str, status_code: int, details: Optional[Dict
 
 def create_validation_error_response(message: str, field_errors: Optional[Dict[str, str]] = None) -> Tuple[Dict[str, Any], int]:
     """Create a validation error response (422 Unprocessable Entity)."""
-    details = {"field_errors": field_errors} if field_errors else None
-    return create_error_response(message, 422, details)
+    response = {
+        "status": "error",
+        "message": message,
+        "status_code": 422,
+        "timestamp": datetime.now(UTC).isoformat()
+    }
+    if field_errors:
+        response["errors"] = field_errors
+    return response, 422
