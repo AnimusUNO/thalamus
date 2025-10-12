@@ -142,11 +142,64 @@ def init_db() -> None:
                 )
             ''')
             
+            # Add performance indexes for frequently queried columns
+            indexes = [
+                # Raw segments indexes
+                "CREATE INDEX IF NOT EXISTS idx_raw_segments_session_id ON raw_segments(session_id)",
+                "CREATE INDEX IF NOT EXISTS idx_raw_segments_timestamp ON raw_segments(timestamp)",
+                "CREATE INDEX IF NOT EXISTS idx_raw_segments_speaker_id ON raw_segments(speaker_id)",
+                
+                # Refined segments indexes
+                "CREATE INDEX IF NOT EXISTS idx_refined_segments_session_id ON refined_segments(session_id)",
+                "CREATE INDEX IF NOT EXISTS idx_refined_segments_start_time ON refined_segments(start_time)",
+                "CREATE INDEX IF NOT EXISTS idx_refined_segments_last_update ON refined_segments(last_update)",
+                
+                # Segment usage indexes
+                "CREATE INDEX IF NOT EXISTS idx_segment_usage_refined_segment_id ON segment_usage(refined_segment_id)",
+                "CREATE INDEX IF NOT EXISTS idx_segment_usage_timestamp ON segment_usage(timestamp)"
+            ]
+            
+            for index_sql in indexes:
+                cur.execute(index_sql)
+            
             conn.commit()
-            logger.info("Database initialized successfully")
+            logger.info("Database initialized with tables and performance indexes")
             
     except Exception as e:
         logger.error(f"Error initializing database: {e}")
+        raise
+
+def add_indexes_to_existing_db() -> None:
+    """Add performance indexes to existing database (migration function)."""
+    try:
+        with get_db() as conn:
+            cur = conn.cursor()
+            
+            # Add performance indexes for frequently queried columns
+            indexes = [
+                # Raw segments indexes
+                "CREATE INDEX IF NOT EXISTS idx_raw_segments_session_id ON raw_segments(session_id)",
+                "CREATE INDEX IF NOT EXISTS idx_raw_segments_timestamp ON raw_segments(timestamp)",
+                "CREATE INDEX IF NOT EXISTS idx_raw_segments_speaker_id ON raw_segments(speaker_id)",
+                
+                # Refined segments indexes
+                "CREATE INDEX IF NOT EXISTS idx_refined_segments_session_id ON refined_segments(session_id)",
+                "CREATE INDEX IF NOT EXISTS idx_refined_segments_start_time ON refined_segments(start_time)",
+                "CREATE INDEX IF NOT EXISTS idx_refined_segments_last_update ON refined_segments(last_update)",
+                
+                # Segment usage indexes
+                "CREATE INDEX IF NOT EXISTS idx_segment_usage_refined_segment_id ON segment_usage(refined_segment_id)",
+                "CREATE INDEX IF NOT EXISTS idx_segment_usage_timestamp ON segment_usage(timestamp)"
+            ]
+            
+            for index_sql in indexes:
+                cur.execute(index_sql)
+            
+            conn.commit()
+            logger.info("Performance indexes added to existing database")
+            
+    except Exception as e:
+        logger.error(f"Error adding indexes to existing database: {e}")
         raise
 
 def get_or_create_session(session_id: str) -> int:
