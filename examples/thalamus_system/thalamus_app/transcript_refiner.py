@@ -23,6 +23,8 @@ import time
 import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
 from database import (
     get_unrefined_segments, insert_refined_segment,
     get_refined_segments, get_locked_segments, get_db,

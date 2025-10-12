@@ -57,9 +57,11 @@ Thalamus is a middleware architecture for agentic AI systems that balances low-l
 The `examples/` directory contains complete reference implementations:
 
 - **[Forensiq Demo](../examples/forensiq_demo/)** - Interactive TUI showing cognitive architecture
-- **[Data Ingestion](../examples/thalamus_app.py)** - Real-time speech-to-text processing
-- **[Transcript Refinement](../examples/transcript_refiner.py)** - AI-powered text enhancement
-- **[Webhook Server](../examples/omi_webhook.py)** - Real-time data endpoint
+- **[Thalamus System](../examples/thalamus_system/)** - Complete system implementation
+  - **[Data Ingestion](../examples/thalamus_system/thalamus_app/thalamus_app.py)** - Real-time speech-to-text processing
+  - **[Transcript Refinement](../examples/thalamus_system/thalamus_app/transcript_refiner.py)** - AI-powered text enhancement
+  - **[Webhook Server](../examples/thalamus_system/webhook_server/omi_webhook.py)** - Real-time data endpoint
+  - **[Database Tools](../examples/thalamus_system/database_tools/)** - Database management utilities
 
 ### Database Schema
 Thalamus uses SQLite with five main tables:

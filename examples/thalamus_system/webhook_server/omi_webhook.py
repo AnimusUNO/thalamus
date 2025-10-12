@@ -25,6 +25,8 @@ import os
 import time
 from datetime import datetime
 from werkzeug.exceptions import RequestEntityTooLarge
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
 from response_utils import create_success_response, create_error_response, create_validation_error_response
 from database import get_db
 from logging_config import setup_logging, get_logger

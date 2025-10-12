@@ -22,6 +22,8 @@ import os
 import json
 from openai import OpenAI
 from dotenv import load_dotenv
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
 from logging_config import setup_logging, get_logger
 
 # Initialize centralized logging

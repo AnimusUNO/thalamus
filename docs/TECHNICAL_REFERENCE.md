@@ -127,9 +127,9 @@ python -m pytest tests/
 ```
 
 ### Database Management
-- **Check database state**: `python examples/check_db.py`
-- **Audit data integrity**: `python examples/audit_segment_usage.py`
-- **Reset database**: `examples/refresh.bat` (Windows) or manually delete `thalamus.db`
+- **Check database state**: `python examples/thalamus_system/database_tools/check_db.py`
+- **Audit data integrity**: `python examples/thalamus_system/database_tools/audit_segment_usage.py`
+- **Reset database**: `examples/shared/refresh.bat` (Windows) or manually delete `thalamus.db`
 
 ## API Reference
 

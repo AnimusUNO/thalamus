@@ -23,7 +23,8 @@ import os
 from datetime import datetime
 
 def check_db():
-    db_path = os.path.join(os.path.dirname(__file__), 'thalamus.db')
+    # Database is now in the core directory
+    db_path = os.path.join(os.path.dirname(__file__), '..', 'core', 'thalamus.db')
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()

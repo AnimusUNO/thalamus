@@ -82,7 +82,7 @@ python omi_webhook.py
 
 ## Demo Data Analysis
 
-### Sample Data Structure (`examples/raw_data_log.json`)
+### Sample Data Structure (`examples/thalamus_system/thalamus_app/raw_data_log.json`)
 The demo uses a 10-minute conversation with 4 speakers discussing technical topics:
 
 ```json

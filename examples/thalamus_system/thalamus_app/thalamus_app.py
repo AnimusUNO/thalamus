@@ -22,6 +22,9 @@ import json
 import time
 from datetime import datetime, UTC
 from typing import Dict, Any, List
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
 from database import get_or_create_session, get_or_create_speaker, insert_segment
 from logging_config import setup_logging, get_logger
 

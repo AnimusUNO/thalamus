@@ -52,25 +52,35 @@ This repository contains the Thalamus whitepaper and reference implementations:
 thalamus/
 ├── README.md                    # This whitepaper
 ├── examples/                    # Reference implementations
-│   ├── forensiq_demo/          # Interactive TUI demo (main.py)
-│   │   ├── main.py             # Forensiq cognitive UI demo
-│   │   ├── requirements.txt    # Demo-specific dependencies
-│   │   └── README.md           # Demo documentation
-│   ├── thalamus_app.py         # Data ingestion application
-│   ├── transcript_refiner.py   # AI-powered transcript refinement
-│   ├── database.py             # Database management
-│   ├── openai_wrapper.py       # OpenAI API integration
-│   ├── omi_webhook.py          # Webhook endpoint
-│   ├── utils.py                # Utility functions
-│   ├── init_db.py              # Database initialization
-│   ├── check_db.py             # Database inspection
-│   ├── audit_segment_usage.py  # Data integrity verification
-│   ├── raw_data_log.json       # Sample test data
-│   └── requirements.txt        # Dependencies
-└── docs/                       # Additional documentation
-    ├── DEMO_GUIDE.md           # Demo instructions
-    ├── OMI_WEBHOOK_GUIDE.md    # Webhook integration guide
-    └── CHANGELOG.md            # Version history
+│   ├── thalamus_system/         # Complete Thalamus system example
+│   │   ├── core/                # Core system components
+│   │   │   ├── database.py      # Database management
+│   │   │   ├── logging_config.py # Centralized logging
+│   │   │   ├── response_utils.py # API response utilities
+│   │   │   └── utils.py         # General utilities
+│   │   ├── thalamus_app/        # Main data ingestion application
+│   │   │   ├── thalamus_app.py  # Main application
+│   │   │   ├── transcript_refiner.py # AI transcript refinement
+│   │   │   ├── openai_wrapper.py # OpenAI API integration
+│   │   │   └── raw_data_log.json # Sample data
+│   │   ├── webhook_server/      # Webhook endpoint server
+│   │   │   └── omi_webhook.py   # Webhook server
+│   │   └── database_tools/      # Database utilities
+│   │       ├── init_db.py       # Database initialization
+│   │       ├── check_db.py      # Database inspection
+│   │       └── audit_segment_usage.py # Segment usage audit
+│   ├── forensiq_demo/           # Interactive TUI demo (separate example)
+│   │   ├── main.py              # Forensiq cognitive UI demo
+│   │   ├── requirements.txt     # Demo-specific dependencies
+│   │   └── README.md            # Demo documentation
+│   └── shared/                  # Shared resources
+│       ├── HANDOFF_DOCUMENT.md  # Development handoff documentation
+│       ├── refresh.bat          # Database refresh script
+│       └── transcript_refiner.log # Log file
+└── docs/                        # Additional documentation
+    ├── DEMO_GUIDE.md            # Demo instructions
+    ├── OMI_WEBHOOK_GUIDE.md     # Webhook integration guide
+    └── CHANGELOG.md             # Version history
 ```
 
 ---
