@@ -1,0 +1,59 @@
+# Testing Dependencies for Thalamus
+# Install with: pip install -r requirements-testing.txt
+
+# Core Testing Framework
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+pytest-xdist>=3.3.0  # Parallel test execution
+
+# Async Testing Support
+aioresponses>=0.7.4  # Mock async HTTP requests
+httpx>=0.24.0  # Async HTTP client for testing
+
+# Database Testing
+factory-boy>=3.3.0  # Test data factories
+
+# Mocking and Fixtures
+responses>=0.23.0  # Mock HTTP requests
+freezegun>=1.2.0  # Mock datetime
+faker>=19.0.0  # Generate fake data
+hypothesis>=6.82.0  # Property-based testing
+
+# Code Quality and Coverage
+coverage>=7.2.0
+pytest-html>=3.2.0  # HTML test reports
+pytest-json-report>=1.5.0  # JSON test reports
+pytest-benchmark>=4.0.0  # Performance testing
+
+# Integration Testing
+selenium>=4.15.0  # Browser automation
+webdriver-manager>=4.0.0  # WebDriver management
+requests-mock>=1.11.0  # Mock requests library
+
+# Load Testing
+locust>=2.17.0  # Load testing framework
+
+# Test Data and Utilities
+pytest-env>=1.1.0  # Environment variables for tests
+
+# Performance and Memory Testing
+memory-profiler>=0.61.0
+
+# Security Testing
+bandit>=1.7.5  # Security linting
+safety>=2.3.5  # Dependency vulnerability scanning
+
+# API Testing
+pytest-flask>=1.2.0  # Flask testing utilities
+
+# Time and Date Testing
+pytest-timeout>=2.1.0  # Test timeout handling
+pytest-repeat>=0.9.1  # Repeat tests
+
+# Configuration and Environment
+python-dotenv>=1.0.0  # Environment variable loading
+
+# JSON and Data Testing
+jsonschema>=4.19.0  # JSON schema validation

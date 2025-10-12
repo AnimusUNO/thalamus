@@ -31,9 +31,23 @@ from database import (
     update_refined_segment, get_refined_segment, get_active_sessions,
     get_or_create_speaker
 )
-from openai_wrapper import call_openai_text
+try:
+    from openai_wrapper import call_openai_text
+except ImportError:
+    # Fallback for when running as a module
+    import sys
+    import os
+    sys.path.append(os.path.dirname(__file__))
+    from openai_wrapper import call_openai_text
 import re
-from logging_config import setup_logging, get_logger
+try:
+    from logging_config import setup_logging, get_logger
+except ImportError:
+    # Fallback for when running as a module
+    import sys
+    import os
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
+    from logging_config import setup_logging, get_logger
 
 # Initialize centralized logging
 setup_logging()

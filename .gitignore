@@ -746,3 +746,4 @@ __pycache__/
 thalamus.db
 .env
 backup/
+tmp/

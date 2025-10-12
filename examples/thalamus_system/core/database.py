@@ -23,7 +23,14 @@ from datetime import datetime
 from contextlib import contextmanager
 import json
 from typing import List, Dict, Optional, Union, Any
-from logging_config import setup_logging, get_logger
+try:
+    from logging_config import setup_logging, get_logger
+except ImportError:
+    # Fallback for when running as a module
+    import sys
+    import os
+    sys.path.append(os.path.dirname(__file__))
+    from logging_config import setup_logging, get_logger
 
 # Initialize centralized logging
 setup_logging()
