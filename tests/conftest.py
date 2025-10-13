@@ -34,7 +34,7 @@ from datetime import datetime, UTC
 sys.path.insert(0, str(Path(__file__).parent.parent / "examples"))
 
 # Import Thalamus modules
-from thalamus_system.core.database import init_db, get_db, DB_PATH
+from thalamus_system.core.database import init_db, get_db, get_db_path
 from thalamus_system.core.logging_config import setup_logging, get_logger
 from thalamus_system.core.response_utils import create_success_response, create_error_response
 
@@ -75,9 +75,8 @@ def temp_db_path(temp_dir):
 def test_db(temp_db_path):
     """Create a test database with schema."""
     # Set environment to use test database
-    original_db_path = DB_PATH
     os.environ['THALAMUS_DB_PATH'] = temp_db_path
-    os.environ['ENVIRONMENT'] = 'test'
+    # Don't set ENVIRONMENT to 'test' as it forces in-memory database
     
     # Initialize the test database
     init_db()
@@ -88,7 +87,6 @@ def test_db(temp_db_path):
     if os.path.exists(temp_db_path):
         os.remove(temp_db_path)
     os.environ.pop('THALAMUS_DB_PATH', None)
-    os.environ.pop('ENVIRONMENT', None)
 
 
 @pytest.fixture(scope="function")

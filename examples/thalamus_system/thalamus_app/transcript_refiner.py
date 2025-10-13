@@ -32,7 +32,7 @@ from database import (
     get_or_create_speaker
 )
 try:
-    from openai_wrapper import call_openai_text
+    from .openai_wrapper import call_openai_text
 except ImportError:
     # Fallback for when running as a module
     import sys
@@ -41,7 +41,7 @@ except ImportError:
     from openai_wrapper import call_openai_text
 import re
 try:
-    from logging_config import setup_logging, get_logger
+    from ..core.logging_config import setup_logging, get_logger
 except ImportError:
     # Fallback for when running as a module
     import sys

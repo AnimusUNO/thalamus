@@ -23,11 +23,11 @@ import os
 from datetime import datetime
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
-from database import DB_PATH
+from database import get_db_path
 
 def check_db():
     # Use configurable database path from database module
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     

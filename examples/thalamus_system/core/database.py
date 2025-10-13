@@ -53,12 +53,11 @@ def get_db_path():
         return os.getenv('THALAMUS_DB_PATH', 
                         str(Path(__file__).parent / 'thalamus.db'))
 
-DB_PATH = get_db_path()
-
 @contextmanager
 def get_db():
     """Get a database connection with proper timeout and row factory."""
-    conn = sqlite3.connect(DB_PATH, timeout=5.0)
+    db_path = get_db_path()  # Get path dynamically
+    conn = sqlite3.connect(db_path, timeout=5.0)
     conn.row_factory = sqlite3.Row
     
     # Register JSON array contains function
@@ -219,6 +218,12 @@ def migrate_database_schema() -> None:
         with get_db() as conn:
             cur = conn.cursor()
             
+            # Check if refined_segments table exists first
+            cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='refined_segments'")
+            if not cur.fetchone():
+                logger.info("refined_segments table does not exist, skipping migration")
+                return
+            
             # Check if is_locked column exists in refined_segments
             cur.execute("PRAGMA table_info(refined_segments)")
             columns = [col[1] for col in cur.fetchall()]
@@ -372,7 +377,11 @@ def insert_refined_segment(
                     try:
                         raw_ids = json.loads(source_segments)
                     except json.JSONDecodeError:
-                        raw_ids = [int(source_segments)]
+                        try:
+                            raw_ids = [int(source_segments)]
+                        except ValueError:
+                            # If it's neither valid JSON nor a valid integer, skip segment usage
+                            raw_ids = []
                 else:
                     raw_ids = [source_segments]
                 
@@ -433,7 +442,7 @@ def update_refined_segment(segment_id: int, **kwargs) -> bool:
             update_fields = []
             values = []
             for key, value in kwargs.items():
-                if key in ['text', 'start_time', 'end_time', 'confidence_score', 'source_segments', 'metadata']:
+                if key in ['text', 'start_time', 'end_time', 'confidence_score', 'source_segments', 'metadata', 'is_locked']:
                     update_fields.append(f"{key} = ?")
                     values.append(value)
             
