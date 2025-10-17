@@ -304,7 +304,7 @@ def get_unrefined_segments(session_id: str = None) -> List[Dict]:
             query = """
                 SELECT 
                     MIN(rs.id) AS id,
-                    sess.session_id AS session_id,
+                    COALESCE(sess.session_id, rs.session_id) AS session_id,
                     rs.speaker_id,
                     rs.text,
                     rs.start_time,
@@ -321,7 +321,10 @@ def get_unrefined_segments(session_id: str = None) -> List[Dict]:
             # Add session filter if provided (filter on the joined session string)
             if session_id:
                 logger.debug(f"Executing query (filtered by session_id): {session_id}")
-                cur.execute(query + " AND sess.session_id = ?", (session_id,))
+                cur.execute(
+                    query + " AND ((sess.session_id = ?) OR (rs.session_id = ?)) GROUP BY sess.session_id, rs.speaker_id, rs.text, rs.start_time, rs.end_time, rs.timestamp, sp.name",
+                    (session_id, session_id),
+                )
             else:
                 logger.debug("Executing query for all unrefined segments")
                 cur.execute(query + " GROUP BY sess.session_id, rs.speaker_id, rs.text, rs.start_time, rs.end_time, rs.timestamp, sp.name")

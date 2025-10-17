@@ -26,15 +26,35 @@ import time
 from datetime import datetime, UTC
 from werkzeug.exceptions import RequestEntityTooLarge, BadRequest
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
-from response_utils import create_success_response, create_error_response, create_validation_error_response
-from database import (
-    get_db,
-    get_or_create_session,
-    get_or_create_speaker,
-    insert_segment,
-)
-from logging_config import setup_logging, get_logger
+# Prefer absolute package imports so tests can mock dependencies reliably
+try:
+    from thalamus_system.core.response_utils import (
+        create_success_response,
+        create_error_response,
+        create_validation_error_response,
+    )
+    from thalamus_system.core.database import (
+        get_db,
+        get_or_create_session,
+        get_or_create_speaker,
+        insert_segment,
+    )
+    from thalamus_system.core.logging_config import setup_logging, get_logger
+except ImportError:
+    # Fallback to relative imports for direct execution
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
+    from response_utils import (
+        create_success_response,
+        create_error_response,
+        create_validation_error_response,
+    )
+    from database import (
+        get_db,
+        get_or_create_session,
+        get_or_create_speaker,
+        insert_segment,
+    )
+    from logging_config import setup_logging, get_logger
 
 # Initialize centralized logging
 setup_logging()
@@ -276,28 +296,28 @@ def detailed_health_check() -> Tuple[Dict[str, Any], int]:
 @app.route("/ready", methods=["GET"])
 def readiness_check() -> Tuple[Dict[str, Any], int]:
     """Readiness check for service discovery."""
+    # Check database connectivity (import path aligned for test mocks)
     try:
-        # Check database connectivity
-        with get_db() as conn:
+        try:
+            from thalamus_system.core.database import get_db as _get_db  # type: ignore
+        except Exception:
+            from database import get_db as _get_db  # fallback
+        with _get_db() as conn:
             conn.execute("SELECT 1")
-        
-        # Check required environment variables
-        required_env_vars = ["OPENAI_API_KEY"]
-        missing_vars = []
-        for var in required_env_vars:
-            if not os.getenv(var):
-                missing_vars.append(var)
-        
-        if missing_vars:
-            return create_error_response(
-                f"Service not ready: Missing environment variables: {', '.join(missing_vars)}",
-                503
-            )
-        
-        return create_success_response("Service is ready", {"status": "ready"})
-        
     except Exception as e:
+        # Must return error payload for tests expecting error format
         return create_error_response(f"Service not ready: {str(e)}", 503)
+
+    # Check required environment variables
+    required_env_vars = ["OPENAI_API_KEY"]
+    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+    if missing_vars:
+        return create_error_response(
+            f"Service not ready: Missing environment variables: {', '.join(missing_vars)}",
+            503
+        )
+
+    return create_success_response("Service is ready", {"status": "ready"})
 
 @app.route("/metrics", methods=["GET"])
 def metrics() -> Tuple[Dict[str, Any], int]:
