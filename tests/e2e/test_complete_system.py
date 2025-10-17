@@ -576,7 +576,7 @@ class TestSystemMonitoringE2E:
     """Test system monitoring and observability."""
     
     @pytest.mark.e2e
-    def test_health_monitoring_e2e(self, flask_client):
+    def test_health_monitoring_e2e(self, flask_client, mock_env_vars):
         """Test health monitoring endpoints in real scenarios."""
         # Test basic health
         health_response = flask_client.get('/health')

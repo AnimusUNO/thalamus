@@ -33,8 +33,14 @@ logger = get_logger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Initialize OpenAI client with modern approach
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+"""Lazy-initialized OpenAI client to avoid import-time failures in tests.
+
+Tests often patch the module-level `client` symbol. We therefore expose a
+module-level `client` variable initialized to None and only construct the
+real client on first use inside `call_openai_text` if it hasn't been patched
+by tests and an API key is available in the environment.
+"""
+client = None  # Will be created on first use or patched by tests
 
 def call_openai_text(prompt: str) -> str:
     """Call OpenAI API with text prompt and return response."""
@@ -43,6 +49,14 @@ def call_openai_text(prompt: str) -> str:
         if isinstance(prompt, dict):
             prompt = json.dumps(prompt)
         
+        # Create the client on first use if tests haven't patched it
+        global client
+        if client is None:
+            api_key = os.getenv("OPENAI_API_KEY")
+            if not api_key:
+                raise RuntimeError("OPENAI_API_KEY is not set and no test client is patched")
+            client = OpenAI(api_key=api_key)
+
         # Call OpenAI API using modern client
         response = client.chat.completions.create(
             model="gpt-4",
