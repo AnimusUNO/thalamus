@@ -29,7 +29,7 @@ from database import (
     get_unrefined_segments, insert_refined_segment,
     get_refined_segments, get_locked_segments, get_db,
     update_refined_segment, get_refined_segment, get_active_sessions,
-    get_or_create_speaker
+    get_or_create_speaker, get_or_create_session
 )
 try:
     from .openai_wrapper import call_openai_text
@@ -84,6 +84,7 @@ class TranscriptRefiner:
                 }
             
             state = self.session_states[session_id]
+            processed_count = 0
             
             for segment in segments:
                 # Update last received time
@@ -91,14 +92,20 @@ class TranscriptRefiner:
                 
                 # Check for speaker change
                 if state["speaker_id"] is not None and segment['speaker_id'] != state["speaker_id"]:
-                    # Finalize current group before starting new one
-                    if state["group"]:
+                    # Finalize current group before starting new one IF we've seen enough
+                    if state["group"] and processed_count >= self.min_segments:
                         self._finalize_group(state["group"], session_id)
                         state["group"] = []
                 
                 # Update current speaker and add segment to group
                 state["speaker_id"] = segment['speaker_id']
                 state["group"].append(segment)
+                processed_count += 1
+            
+            # For short sessions (< min_segments), still produce one refined group
+            if state["group"]:
+                self._finalize_group(state["group"], session_id)
+                state["group"] = []
             
             return True
             
@@ -128,9 +135,12 @@ class TranscriptRefiner:
         # Get source segment IDs
         source_segments = [s['id'] for s in segments]
         
+        # Map session string to DB session id for referential consistency
+        db_session_id = get_or_create_session(session_id)
+
         # Insert refined segment
         insert_refined_segment(
-            session_id=session_id,
+            session_id=db_session_id,
             refined_speaker_id=refined_speaker_id,
             text=combined_text,
             start_time=start_time,

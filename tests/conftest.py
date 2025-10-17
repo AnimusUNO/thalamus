@@ -73,26 +73,17 @@ def temp_db_path(temp_dir):
 
 @pytest.fixture(scope="function")
 def test_db(temp_db_path):
-    """Create a test database with schema."""
+    """Create a test database with schema and provide a connection context manager."""
     # Set environment to use test database
     os.environ['THALAMUS_DB_PATH'] = temp_db_path
     # Don't set ENVIRONMENT to 'test' as it forces in-memory database
-    
+
     # Initialize the test database
     init_db()
-    
-    # Provide a context manager compatible object for tests that use
-    # `with test_db as conn:` while keeping access to the path via conn.database
-    import sqlite3 as _sqlite3
-    conn = _sqlite3.connect(temp_db_path)
-    # Ensure schema exists on this connection as well (defensive against patched connects)
-    cur = conn.cursor()
-    cur.execute('CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
-    cur.execute('CREATE TABLE IF NOT EXISTS speakers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
-    cur.execute('CREATE TABLE IF NOT EXISTS raw_segments (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, speaker_id INTEGER NOT NULL, text TEXT NOT NULL, start_time REAL NOT NULL, end_time REAL NOT NULL, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
-    cur.execute('CREATE TABLE IF NOT EXISTS refined_segments (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id INTEGER NOT NULL, refined_speaker_id INTEGER NOT NULL, text TEXT NOT NULL, start_time REAL NOT NULL, end_time REAL NOT NULL, confidence_score REAL DEFAULT 0, source_segments TEXT, metadata TEXT, is_processing INTEGER DEFAULT 0, last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP, is_locked INTEGER DEFAULT 0)')
-    cur.execute('CREATE TABLE IF NOT EXISTS segment_usage (raw_segment_id INTEGER PRIMARY KEY, refined_segment_id INTEGER, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP)')
-    conn.commit()
+
+    # Provide a real sqlite3 connection as a context manager for tests that use `with test_db as conn:`
+    conn = sqlite3.connect(temp_db_path)
+    conn.row_factory = sqlite3.Row
     try:
         yield conn
     finally:
@@ -100,22 +91,21 @@ def test_db(temp_db_path):
             conn.close()
         except Exception:
             pass
-    
-    # Cleanup
-    if os.path.exists(temp_db_path):
-        try:
-            # On Windows, there can be a delay before file handles are released
-            import time
-            time.sleep(0.1)
-            os.remove(temp_db_path)
-        except PermissionError:
-            # If we can't delete the file, it's likely still in use
-            # This is acceptable for test cleanup
-            pass
-        except Exception:
-            # Any other error during cleanup is also acceptable
-            pass
-    os.environ.pop('THALAMUS_DB_PATH', None)
+        # Cleanup
+        if os.path.exists(temp_db_path):
+            try:
+                # On Windows, there can be a delay before file handles are released
+                import time
+                time.sleep(0.1)
+                os.remove(temp_db_path)
+            except PermissionError:
+                # If we can't delete the file, it's likely still in use
+                # This is acceptable for test cleanup
+                pass
+            except Exception:
+                # Any other error during cleanup is also acceptable
+                pass
+        os.environ.pop('THALAMUS_DB_PATH', None)
 
 
 @pytest.fixture(scope="function")

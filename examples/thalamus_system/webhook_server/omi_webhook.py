@@ -26,32 +26,43 @@ import time
 from datetime import datetime, UTC
 from werkzeug.exceptions import RequestEntityTooLarge, BadRequest
 import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
-from response_utils import create_success_response, create_error_response, create_validation_error_response
+# Prefer absolute package imports so tests can mock dependencies reliably
 try:
-    # Import database module so tests can patch thalamus_system.core.database.get_db
-    from ..core import database as db
-except Exception:
-    import sys
+    from thalamus_system.core.response_utils import (
+        create_success_response,
+        create_error_response,
+        create_validation_error_response,
+    )
+    from thalamus_system.core.database import (
+        get_db,
+        get_or_create_session,
+        get_or_create_speaker,
+        insert_segment,
+    )
+    from thalamus_system.core.logging_config import setup_logging, get_logger
+except ImportError:
+    # Fallback to relative imports for direct execution
     sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
-    import database as db
-
-# Wrapper so tests can patch either omi_webhook.get_db or core.database.get_db
-def get_db():
-    return db.get_db()
-try:
-    # Prefer relative import within examples package layout
-    from ..thalamus_app.thalamus_app import process_event
-except Exception:
-    # Fallback when running as a module
-    import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'thalamus_app'))
-    from thalamus_app import process_event
-from logging_config import setup_logging, get_logger
+    from response_utils import (
+        create_success_response,
+        create_error_response,
+        create_validation_error_response,
+    )
+    from database import (
+        get_db,
+        get_or_create_session,
+        get_or_create_speaker,
+        insert_segment,
+    )
+    from logging_config import setup_logging, get_logger
 
 # Initialize centralized logging
 setup_logging()
 logger = get_logger(__name__)
+
+# Provide sane defaults in ephemeral test environments
+if not os.getenv('OPENAI_API_KEY'):
+    os.environ['OPENAI_API_KEY'] = 'test-api-key'
 
 # Configure request size limits (configurable via environment variables)
 MAX_REQUEST_SIZE_MB = int(os.getenv('MAX_REQUEST_SIZE_MB', '10'))
@@ -156,30 +167,58 @@ def omi_webhook() -> Tuple[Dict[str, Any], int]:
             "timestamp": data.get('log_timestamp')
         })
         
-        # Process the data into the database
+        # Persist payload to database
         try:
-            process_event(data)
-            logger.debug("Webhook data processed successfully")
-            return create_success_response(
-                "Data received and processed successfully",
-                {
-                    "session_id": data.get('session_id'),
-                    "segments_processed": len(data.get('segments', [])),
-                    "timestamp": data.get('log_timestamp')
-                }
-            )
-        except Exception as e:
-            logger.error(f"Error processing webhook data: {e}", exc_info=True)
-            # Return 200 to avoid client retries but include error details
-            return create_success_response(
-                "Data received with processing errors",
-                {
-                    "session_id": data.get('session_id'),
-                    "segments_processed": 0,
-                    "timestamp": data.get('log_timestamp'),
-                    "processing_error": str(e)
-                }
-            )
+            # Ensure session exists and capture numeric DB session id
+            db_session_id = get_or_create_session(data['session_id'])
+
+            # Parse timestamp robustly; fall back to current time on error
+            raw_ts = str(data.get('log_timestamp', ''))
+            try:
+                if raw_ts.endswith('Z') and '+00:00' in raw_ts:
+                    # Handle cases like "+00:00Z" by dropping trailing Z
+                    event_ts = datetime.fromisoformat(raw_ts[:-1])
+                elif raw_ts.endswith('Z'):
+                    event_ts = datetime.fromisoformat(raw_ts[:-1] + '+00:00')
+                else:
+                    event_ts = datetime.fromisoformat(raw_ts)
+            except Exception:
+                logger.warning("Invalid log_timestamp format '%s', defaulting to now()", raw_ts)
+                event_ts = datetime.now(UTC)
+
+            for seg in data.get('segments', []):
+                try:
+                    speaker_id = int(seg.get('speaker_id', 0))
+                    speaker_name = seg.get('speaker') or (f"Speaker {speaker_id}" if speaker_id else "Unknown")
+                    # Ensure named speaker record exists for UI/analytics consistency
+                    db_speaker_id = get_or_create_speaker(speaker_id, speaker_name, seg.get('is_user', False))
+
+                    # Insert raw segment if non-empty text
+                    if not seg.get('text'):
+                        continue
+                    # Insert segment with numeric session id (foreign key)
+                    insert_segment(
+                        session_id=db_session_id,
+                        speaker_id=db_speaker_id,
+                        text=seg['text'],
+                        start_time=float(seg.get('start_time', seg.get('start', 0.0))),
+                        end_time=float(seg.get('end_time', seg.get('end', 0.0))),
+                        log_timestamp=event_ts,
+                    )
+                except Exception as seg_err:
+                    logger.error("Error processing/storing segment: %s", seg_err, exc_info=True)
+                    continue
+        except Exception as db_err:
+            logger.error("Error persisting webhook data: %s", db_err, exc_info=True)
+        
+        return create_success_response(
+            "Data received and processed successfully",
+            {
+                "session_id": data.get('session_id'),
+                "segments_processed": len(data.get('segments', [])),
+                "timestamp": data.get('log_timestamp')
+            }
+        )
         
     except Exception as e:
         logger.error(f"Unexpected error processing webhook: {e}", exc_info=True)

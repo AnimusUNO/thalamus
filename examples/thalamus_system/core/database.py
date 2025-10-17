@@ -25,12 +25,14 @@ import json
 from typing import List, Dict, Optional, Union, Any
 try:
     from logging_config import setup_logging, get_logger
+    from error_handler import handle_database_error
 except ImportError:
     # Fallback for when running as a module
     import sys
     import os
     sys.path.append(os.path.dirname(__file__))
     from logging_config import setup_logging, get_logger
+    from error_handler import handle_database_error
 
 # Initialize centralized logging
 setup_logging()
@@ -244,8 +246,7 @@ def init_db() -> None:
             migrate_database_schema()
             
     except Exception as e:
-        logger.error(f"Error initializing database: {e}")
-        raise
+        handle_database_error("init_db", e, rethrow=True)
 
 def add_indexes_to_existing_db() -> None:
     """Add performance indexes to existing database (migration function)."""
@@ -277,8 +278,7 @@ def add_indexes_to_existing_db() -> None:
             logger.info("Performance indexes added to existing database")
             
     except Exception as e:
-        logger.error(f"Error adding indexes to existing database: {e}")
-        raise
+        handle_database_error("add_indexes_to_existing_db", e, rethrow=True)
 
 def migrate_database_schema() -> None:
     """Migrate existing database schema to add missing columns and fix FKs.
@@ -448,8 +448,7 @@ def migrate_database_schema() -> None:
             logger.info("Database schema migration completed")
             
     except Exception as e:
-        logger.error(f"Error migrating database schema: {e}")
-        raise
+        handle_database_error("migrate_database_schema", e, rethrow=True)
 
 def get_or_create_session(session_id: str) -> int:
     """Get or create a session and return its ID."""
@@ -551,8 +550,7 @@ def get_unrefined_segments(session_id: str = None) -> List[Dict]:
             return results
             
     except Exception as e:
-        logger.error(f"Error getting unrefined segments: {e}")
-        return []
+        return handle_database_error("get_unrefined_segments", e, default_return=[])
 
 def get_used_segment_ids() -> List[int]:
     """Get list of raw segment IDs that have been used in refinements."""
@@ -562,8 +560,7 @@ def get_used_segment_ids() -> List[int]:
             cur.execute('SELECT raw_segment_id FROM segment_usage')
             return [row[0] for row in cur.fetchall()]
     except Exception as e:
-        logger.error(f"Error getting used segment IDs: {e}")
-        return []
+        return handle_database_error("get_used_segment_ids", e, default_return=[])
 
 def insert_refined_segment(
     session_id: Union[str, int],
@@ -629,8 +626,7 @@ def insert_refined_segment(
             return segment_id
             
     except Exception as e:
-        logger.error(f"Error inserting refined segment: {e}")
-        raise
+        handle_database_error("insert_refined_segment", e, rethrow=True)
 
 def get_refined_segments(session_id: Optional[str] = None) -> List[Dict[str, Any]]:
     """Get refined segments, returning string session_id directly."""
@@ -765,8 +761,7 @@ def get_refined_segment(segment_id: int) -> Optional[Dict[str, Any]]:
             return None
             
     except Exception as e:
-        logger.error(f"Error getting refined segment {segment_id}: {e}")
-        return None
+        return handle_database_error("get_refined_segment", e, default_return=None)
 
 def get_active_sessions() -> List[Dict[str, Any]]:
     """Get all active sessions that have unprocessed segments."""
@@ -790,5 +785,4 @@ def get_active_sessions() -> List[Dict[str, Any]]:
                 'created_at': row[1]
             } for row in cur.fetchall()]
     except Exception as e:
-        logger.error(f"Error getting active sessions: {e}")
-        return []
+        return handle_database_error("get_active_sessions", e, default_return=[])
