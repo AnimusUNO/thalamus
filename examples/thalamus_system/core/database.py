@@ -77,6 +77,67 @@ def get_db():
     
     conn.create_function("json_array_contains", 2, json_array_contains)
     
+    # Ensure core tables exist (defensive bootstrap for tests and tools)
+    try:
+        cur = conn.cursor()
+        # sessions
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        # speakers
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS speakers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        # raw_segments (FK to sessions.id)
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS raw_segments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                speaker_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                start_time REAL NOT NULL,
+                end_time REAL NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        # refined_segments (FK to sessions.id)
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS refined_segments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                refined_speaker_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                start_time REAL NOT NULL,
+                end_time REAL NOT NULL,
+                confidence_score REAL DEFAULT 0,
+                source_segments TEXT,
+                metadata TEXT,
+                last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_processing INTEGER DEFAULT 0,
+                is_locked INTEGER DEFAULT 0
+            )
+        ''')
+        # segment_usage
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS segment_usage (
+                raw_segment_id INTEGER PRIMARY KEY,
+                refined_segment_id INTEGER,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+    except Exception:
+        # If bootstrap fails, proceed; init_db() handles schema creation elsewhere
+        pass
+    
     try:
         yield conn
     finally:

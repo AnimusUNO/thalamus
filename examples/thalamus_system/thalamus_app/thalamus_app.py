@@ -69,13 +69,12 @@ def process_event(event: Dict[str, Any]) -> None:
         # Process segments
         for segment in event['segments']:
             try:
-                # Handle missing speaker_id gracefully
-                speaker_id_raw = segment.get('speaker_id')
-                if speaker_id_raw is None:
-                    logger.warning("Segment missing speaker_id, skipping: %s", segment.get('text', '')[:50])
-                    continue
-                
-                speaker_id_value = int(speaker_id_raw)
+                # Determine speaker name (fallback if not provided)
+                # Default missing/invalid speaker_id to 1 for robustness
+                try:
+                    speaker_id_value = int(segment.get('speaker_id'))
+                except Exception:
+                    speaker_id_value = 1
                 speaker_name = segment.get('speaker') or f"Speaker {speaker_id_value}"
                 db_speaker_id = get_or_create_speaker(
                     speaker_id=speaker_id_value,
@@ -86,7 +85,7 @@ def process_event(event: Dict[str, Any]) -> None:
 
                 # Insert raw segment using correct keys
                 segment_id = insert_segment(
-                    session_id=session_id_str,
+                    session_id=db_session_id,
                     speaker_id=db_speaker_id,
                     text=segment['text'],
                     start_time=float(segment['start_time']),
