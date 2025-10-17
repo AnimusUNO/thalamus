@@ -73,20 +73,28 @@ def temp_db_path(temp_dir):
 
 @pytest.fixture(scope="function")
 def test_db(temp_db_path):
-    """Create a test database with schema."""
+    """Create a test database with schema and provide a connection context manager."""
     # Set environment to use test database
     os.environ['THALAMUS_DB_PATH'] = temp_db_path
     # Don't set ENVIRONMENT to 'test' as it forces in-memory database
-    
+
     # Initialize the test database
     init_db()
-    
-    yield temp_db_path
-    
-    # Cleanup
-    if os.path.exists(temp_db_path):
-        os.remove(temp_db_path)
-    os.environ.pop('THALAMUS_DB_PATH', None)
+
+    # Provide a real sqlite3 connection as a context manager for tests that use `with test_db as conn:`
+    conn = sqlite3.connect(temp_db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        # Cleanup
+        if os.path.exists(temp_db_path):
+            os.remove(temp_db_path)
+        os.environ.pop('THALAMUS_DB_PATH', None)
 
 
 @pytest.fixture(scope="function")

@@ -36,7 +36,13 @@ def process_event(event: Dict[str, Any]) -> None:
     """Process a single event and store it in the database."""
     try:
         # Get current event timestamp
-        current_timestamp = datetime.fromisoformat(event['log_timestamp'].replace('Z', '+00:00'))
+        raw_ts = str(event.get('log_timestamp', ''))
+        if raw_ts.endswith('Z') and '+00:00' in raw_ts:
+            current_timestamp = datetime.fromisoformat(raw_ts[:-1])
+        elif raw_ts.endswith('Z'):
+            current_timestamp = datetime.fromisoformat(raw_ts[:-1] + '+00:00')
+        else:
+            current_timestamp = datetime.fromisoformat(raw_ts)
         logger.debug("Processing event at timestamp: %s", current_timestamp)
         
         # Get or create session
@@ -48,25 +54,31 @@ def process_event(event: Dict[str, Any]) -> None:
         for segment in event['segments']:
             try:
                 # Get or create speaker
-                speaker_id = int(segment['speaker_id'])  # Convert to integer
+                # Be tolerant of missing speaker_id in partial data
+                speaker_id = int(segment.get('speaker_id', 0))
+                speaker_name = segment.get('speaker') or f"Speaker {speaker_id}"
                 db_speaker_id = get_or_create_speaker(
                     speaker_id=speaker_id,
-                    speaker_name=segment['speaker'],
+                    speaker_name=speaker_name,
                     is_user=segment.get('is_user', False)
                 )
-                logger.debug("Using database speaker ID: %d for speaker: %s", db_speaker_id, segment['speaker'])
+                logger.debug("Using database speaker ID: %d for speaker: %s", db_speaker_id, speaker_name)
 
                 # Insert segment into database
                 segment_id = insert_segment(
-                    session_id=db_session_id,
+                    session_id_str=session_id,
                     speaker_id=db_speaker_id,
                     text=segment['text'],
-                    start_time=segment['start'],
-                    end_time=segment['end'],
+                    start_time=segment.get('start_time', segment.get('start')),
+                    end_time=segment.get('end_time', segment.get('end')),
                     log_timestamp=current_timestamp
                 )
-                logger.info("Processed segment %d from %s: %s", 
-                          segment_id, segment['speaker'], segment['text'][:50] + "...")
+                logger.info(
+                    "Processed segment %d from %s: %s",
+                    segment_id,
+                    speaker_name,
+                    segment['text'][:50] + "...",
+                )
             except Exception as e:
                 logger.error("Error processing segment: %s", e, exc_info=True)
                 continue

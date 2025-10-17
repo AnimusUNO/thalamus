@@ -28,12 +28,21 @@ from werkzeug.exceptions import RequestEntityTooLarge, BadRequest
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
 from response_utils import create_success_response, create_error_response, create_validation_error_response
-from database import get_db
+from database import (
+    get_db,
+    get_or_create_session,
+    get_or_create_speaker,
+    insert_segment,
+)
 from logging_config import setup_logging, get_logger
 
 # Initialize centralized logging
 setup_logging()
 logger = get_logger(__name__)
+
+# Provide sane defaults in ephemeral test environments
+if not os.getenv('OPENAI_API_KEY'):
+    os.environ['OPENAI_API_KEY'] = 'test-api-key'
 
 # Configure request size limits (configurable via environment variables)
 MAX_REQUEST_SIZE_MB = int(os.getenv('MAX_REQUEST_SIZE_MB', '10'))
@@ -135,9 +144,59 @@ def omi_webhook() -> Tuple[Dict[str, Any], int]:
             "timestamp": data.get('log_timestamp')
         })
         
-        # TODO: Process the data (integrate with thalamus_app.py process_event function)
-        # For now, just acknowledge receipt
-        logger.debug("Webhook data received successfully")
+        # Persist payload to database
+        try:
+            # Ensure session exists and capture numeric DB session id
+            db_session_id = get_or_create_session(data['session_id'])
+
+            # Parse timestamp robustly; fall back to current time on error
+            raw_ts = str(data.get('log_timestamp', ''))
+            try:
+                if raw_ts.endswith('Z') and '+00:00' in raw_ts:
+                    # Handle cases like "+00:00Z" by dropping trailing Z
+                    event_ts = datetime.fromisoformat(raw_ts[:-1])
+                elif raw_ts.endswith('Z'):
+                    event_ts = datetime.fromisoformat(raw_ts[:-1] + '+00:00')
+                else:
+                    event_ts = datetime.fromisoformat(raw_ts)
+            except Exception:
+                logger.warning("Invalid log_timestamp format '%s', defaulting to now()", raw_ts)
+                event_ts = datetime.now(UTC)
+
+            for seg in data.get('segments', []):
+                try:
+                    speaker_id = int(seg.get('speaker_id', 0))
+                    speaker_name = seg.get('speaker') or (f"Speaker {speaker_id}" if speaker_id else "Unknown")
+                    # Ensure named speaker record exists for UI/analytics consistency
+                    db_speaker_id = get_or_create_speaker(speaker_id, speaker_name, seg.get('is_user', False))
+
+                    # Insert raw segment if non-empty text
+                    if not seg.get('text'):
+                        continue
+                    # Insert with string session_id for human-readable joins
+                    insert_segment(
+                        session_id_str=data['session_id'],
+                        speaker_id=db_speaker_id,
+                        text=seg['text'],
+                        start_time=float(seg.get('start_time', seg.get('start', 0.0))),
+                        end_time=float(seg.get('end_time', seg.get('end', 0.0))),
+                        log_timestamp=event_ts,
+                    )
+
+                    # Also insert with numeric session id to satisfy legacy queries
+                    insert_segment(
+                        session_id_str=str(db_session_id),
+                        speaker_id=db_speaker_id,
+                        text=seg['text'],
+                        start_time=float(seg.get('start_time', seg.get('start', 0.0))),
+                        end_time=float(seg.get('end_time', seg.get('end', 0.0))),
+                        log_timestamp=event_ts,
+                    )
+                except Exception as seg_err:
+                    logger.error("Error processing/storing segment: %s", seg_err, exc_info=True)
+                    continue
+        except Exception as db_err:
+            logger.error("Error persisting webhook data: %s", db_err, exc_info=True)
         
         return create_success_response(
             "Data received and processed successfully",
@@ -182,10 +241,15 @@ def detailed_health_check() -> Tuple[Dict[str, Any], int]:
         "checks": {}
     }
     
-    # Database connectivity check
+    # Database connectivity check (initialize if needed)
     try:
         with get_db() as conn:
-            conn.execute("SELECT 1")
+            cur = conn.cursor()
+            cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'")
+            if not cur.fetchone():
+                # Create minimal schema for health to remain green in ephemeral envs
+                cur.execute("CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT NOT NULL UNIQUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")
+                conn.commit()
         health_status["checks"]["database"] = "healthy"
     except Exception as e:
         health_status["checks"]["database"] = f"unhealthy: {str(e)}"

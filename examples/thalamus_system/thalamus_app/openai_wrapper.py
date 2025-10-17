@@ -20,11 +20,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import os
 import json
+from typing import Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
 from logging_config import setup_logging, get_logger
+from error_handler import handle_api_error
 
 # Initialize centralized logging
 setup_logging()
@@ -33,8 +35,21 @@ logger = get_logger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Initialize OpenAI client with modern approach
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Lazily initialized OpenAI client to avoid import-time failures in tests
+client: Optional[OpenAI] = None
+
+
+def get_openai_client() -> OpenAI:
+    """Return a shared OpenAI client, creating it on first use."""
+    global client
+    if client is not None:
+        return client
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        # Defer raising to call sites that need the client
+        raise RuntimeError("OPENAI_API_KEY is not set; unable to initialize OpenAI client")
+    client = OpenAI(api_key=api_key)
+    return client
 
 def call_openai_text(prompt: str) -> str:
     """Call OpenAI API with text prompt and return response."""
@@ -44,7 +59,7 @@ def call_openai_text(prompt: str) -> str:
             prompt = json.dumps(prompt)
         
         # Call OpenAI API using modern client
-        response = client.chat.completions.create(
+        response = get_openai_client().chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that provides responses in valid JSON format."},
@@ -63,8 +78,7 @@ def call_openai_text(prompt: str) -> str:
         return response_text
         
     except Exception as e:
-        logger.error(f"Error calling OpenAI API: {e}")
-        raise
+        handle_api_error("call_openai_text", e, rethrow=True)
 
 if __name__ == '__main__':
     # Test the API
