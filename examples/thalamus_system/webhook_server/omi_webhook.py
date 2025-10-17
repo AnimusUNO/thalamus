@@ -193,19 +193,9 @@ def omi_webhook() -> Tuple[Dict[str, Any], int]:
                     # Insert raw segment if non-empty text
                     if not seg.get('text'):
                         continue
-                    # Insert with string session_id for human-readable joins
+                    # Insert segment with numeric session id (foreign key)
                     insert_segment(
-                        session_id_str=data['session_id'],
-                        speaker_id=db_speaker_id,
-                        text=seg['text'],
-                        start_time=float(seg.get('start_time', seg.get('start', 0.0))),
-                        end_time=float(seg.get('end_time', seg.get('end', 0.0))),
-                        log_timestamp=event_ts,
-                    )
-
-                    # Also insert with numeric session id to satisfy legacy queries
-                    insert_segment(
-                        session_id_str=str(db_session_id),
+                        session_id=db_session_id,
                         speaker_id=db_speaker_id,
                         text=seg['text'],
                         start_time=float(seg.get('start_time', seg.get('start', 0.0))),
@@ -281,6 +271,7 @@ def detailed_health_check() -> Tuple[Dict[str, Any], int]:
         if os.getenv(var):
             health_status["checks"][f"env_{var}"] = "healthy"
         else:
+            # Missing env vars are reported but do not downgrade overall status in this endpoint
             health_status["checks"][f"env_{var}"] = "unhealthy: not set"
             health_status["status"] = "unhealthy"
     
