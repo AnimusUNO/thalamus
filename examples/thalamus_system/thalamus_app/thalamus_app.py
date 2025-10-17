@@ -33,44 +33,71 @@ setup_logging()
 logger = get_logger(__name__)
 
 def process_event(event: Dict[str, Any]) -> None:
-    """Process a single event and store it in the database."""
+    """Process a single event payload and store its segments in the database.
+
+    The expected event format is:
+    {
+      "session_id": str,
+      "log_timestamp": ISO-8601 string (may end with 'Z'),
+      "segments": [
+         {"speaker_id": int, "text": str, "start_time": float, "end_time": float, ...},
+         ...
+      ]
+    }
+    """
     try:
-        # Get current event timestamp
-        current_timestamp = datetime.fromisoformat(event['log_timestamp'].replace('Z', '+00:00'))
+        # Parse event timestamp robustly (handles values ending with 'Z' or already offset-aware)
+        ts_raw = event['log_timestamp']
+        if isinstance(ts_raw, str):
+            # Normalize forms like "+00:00Z" (some tests append 'Z' after isoformat())
+            if ts_raw.endswith('+00:00Z'):
+                ts_norm = ts_raw[:-1]  # drop trailing Z
+            elif ts_raw.endswith('Z'):
+                ts_norm = ts_raw.replace('Z', '+00:00')
+            else:
+                ts_norm = ts_raw
+            current_timestamp = datetime.fromisoformat(ts_norm)
+        else:
+            current_timestamp = ts_raw
         logger.debug("Processing event at timestamp: %s", current_timestamp)
-        
-        # Get or create session
-        session_id = event['session_id']
-        db_session_id = get_or_create_session(session_id)
-        logger.debug("Using database session ID: %d for session: %s", db_session_id, session_id)
+
+        # Ensure session exists and get numeric PK
+        session_id_str = event['session_id']
+        db_session_id = get_or_create_session(session_id_str)
+        logger.debug("Using database session ID: %d for session: %s", db_session_id, session_id_str)
 
         # Process segments
         for segment in event['segments']:
             try:
-                # Get or create speaker
-                speaker_id = int(segment['speaker_id'])  # Convert to integer
+                # Determine speaker name (fallback if not provided)
+                speaker_id_value = int(segment.get('speaker_id'))
+                speaker_name = segment.get('speaker') or f"Speaker {speaker_id_value}"
                 db_speaker_id = get_or_create_speaker(
-                    speaker_id=speaker_id,
-                    speaker_name=segment['speaker'],
+                    speaker_id=speaker_id_value,
+                    speaker_name=speaker_name,
                     is_user=segment.get('is_user', False)
                 )
-                logger.debug("Using database speaker ID: %d for speaker: %s", db_speaker_id, segment['speaker'])
+                logger.debug("Using database speaker ID: %d for speaker: %s", db_speaker_id, speaker_name)
 
-                # Insert segment into database
+                # Insert raw segment using correct keys
                 segment_id = insert_segment(
-                    session_id=db_session_id,
+                    session_id=session_id_str,
                     speaker_id=db_speaker_id,
                     text=segment['text'],
-                    start_time=segment['start'],
-                    end_time=segment['end'],
+                    start_time=float(segment['start_time']),
+                    end_time=float(segment['end_time']),
                     log_timestamp=current_timestamp
                 )
-                logger.info("Processed segment %d from %s: %s", 
-                          segment_id, segment['speaker'], segment['text'][:50] + "...")
+                logger.info(
+                    "Processed segment %d (speaker %s): %s",
+                    segment_id,
+                    speaker_name,
+                    (segment['text'][:50] + "...") if len(segment['text']) > 50 else segment['text']
+                )
             except Exception as e:
                 logger.error("Error processing segment: %s", e, exc_info=True)
                 continue
-                
+
     except Exception as e:
         logger.error("Error processing event: %s", e, exc_info=True)
         raise

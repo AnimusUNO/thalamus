@@ -29,6 +29,14 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'core'))
 from response_utils import create_success_response, create_error_response, create_validation_error_response
 from database import get_db
+try:
+    # Prefer relative import within examples package layout
+    from ..thalamus_app.thalamus_app import process_event
+except Exception:
+    # Fallback when running as a module
+    import sys
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'thalamus_app'))
+    from thalamus_app import process_event
 from logging_config import setup_logging, get_logger
 
 # Initialize centralized logging
@@ -135,18 +143,30 @@ def omi_webhook() -> Tuple[Dict[str, Any], int]:
             "timestamp": data.get('log_timestamp')
         })
         
-        # TODO: Process the data (integrate with thalamus_app.py process_event function)
-        # For now, just acknowledge receipt
-        logger.debug("Webhook data received successfully")
-        
-        return create_success_response(
-            "Data received and processed successfully",
-            {
-                "session_id": data.get('session_id'),
-                "segments_processed": len(data.get('segments', [])),
-                "timestamp": data.get('log_timestamp')
-            }
-        )
+        # Process the data into the database
+        try:
+            process_event(data)
+            logger.debug("Webhook data processed successfully")
+            return create_success_response(
+                "Data received and processed successfully",
+                {
+                    "session_id": data.get('session_id'),
+                    "segments_processed": len(data.get('segments', [])),
+                    "timestamp": data.get('log_timestamp')
+                }
+            )
+        except Exception as e:
+            logger.error(f"Error processing webhook data: {e}", exc_info=True)
+            # Return 200 to avoid client retries but include error details
+            return create_success_response(
+                "Data received with processing errors",
+                {
+                    "session_id": data.get('session_id'),
+                    "segments_processed": 0,
+                    "timestamp": data.get('log_timestamp'),
+                    "processing_error": str(e)
+                }
+            )
         
     except Exception as e:
         logger.error(f"Unexpected error processing webhook: {e}", exc_info=True)
