@@ -77,6 +77,67 @@ def get_db():
     
     conn.create_function("json_array_contains", 2, json_array_contains)
     
+    # Ensure core tables exist (defensive bootstrap for tests and tools)
+    try:
+        cur = conn.cursor()
+        # sessions
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        # speakers
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS speakers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        # raw_segments (FK to sessions.id)
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS raw_segments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                speaker_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                start_time REAL NOT NULL,
+                end_time REAL NOT NULL,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        # refined_segments (FK to sessions.id)
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS refined_segments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id INTEGER NOT NULL,
+                refined_speaker_id INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                start_time REAL NOT NULL,
+                end_time REAL NOT NULL,
+                confidence_score REAL DEFAULT 0,
+                source_segments TEXT,
+                metadata TEXT,
+                last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_processing INTEGER DEFAULT 0,
+                is_locked INTEGER DEFAULT 0
+            )
+        ''')
+        # segment_usage
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS segment_usage (
+                raw_segment_id INTEGER PRIMARY KEY,
+                refined_segment_id INTEGER,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+    except Exception:
+        # If bootstrap fails, proceed; init_db() handles schema creation elsewhere
+        pass
+    
     try:
         yield conn
     finally:
@@ -635,7 +696,7 @@ def get_refined_segment(segment_id: int) -> Optional[Dict[str, Any]]:
             query = """
                 SELECT 
                     r.id,
-                    r.session_id AS session_id,
+                    se.session_id AS session_id,
                     r.refined_speaker_id,
                     r.text,
                     r.start_time,
@@ -644,6 +705,7 @@ def get_refined_segment(segment_id: int) -> Optional[Dict[str, Any]]:
                     r.source_segments,
                     r.metadata
                 FROM refined_segments r
+                JOIN sessions se ON r.session_id = se.id
                 WHERE r.id = ?
             """
             cur.execute(query, (segment_id,))
@@ -673,12 +735,13 @@ def get_active_sessions() -> List[Dict[str, Any]]:
         with get_db() as conn:
             cur = conn.cursor()
             query = """
-                SELECT DISTINCT rs.session_id, MIN(rs.timestamp) as created_at
+                SELECT DISTINCT se.session_id, MIN(rs.timestamp) as created_at
                 FROM raw_segments rs
+                JOIN sessions se ON rs.session_id = se.id
                 WHERE rs.id NOT IN (
                     SELECT raw_segment_id FROM segment_usage
                 )
-                GROUP BY rs.session_id
+                GROUP BY se.session_id
                 ORDER BY created_at DESC
             """
             cur.execute(query)

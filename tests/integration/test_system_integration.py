@@ -62,9 +62,9 @@ class TestDataFlowIntegration:
             session_result = cur.fetchone()
             assert session_result is not None
             
-            # Check segments were stored
+            # Check segments were stored (match by numeric session primary key)
             cur.execute("SELECT COUNT(*) FROM raw_segments WHERE session_id = ?",
-                       (sample_session_data['session_id'],))
+                       (session_result[0],))
             segment_count = cur.fetchone()[0]
             assert segment_count == len(sample_session_data['segments'])
     
