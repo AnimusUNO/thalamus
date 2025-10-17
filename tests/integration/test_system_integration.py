@@ -63,8 +63,11 @@ class TestDataFlowIntegration:
             assert session_result is not None
             
             # Check segments were stored
-            cur.execute("SELECT COUNT(*) FROM raw_segments WHERE session_id = ?",
-                       (sample_session_data['session_id'],))
+            cur.execute("""
+                SELECT COUNT(*) FROM raw_segments rs 
+                JOIN sessions s ON rs.session_id = s.id 
+                WHERE s.session_id = ?
+            """, (sample_session_data['session_id'],))
             segment_count = cur.fetchone()[0]
             assert segment_count == len(sample_session_data['segments'])
     
@@ -383,9 +386,9 @@ class TestErrorRecoveryIntegration:
         partial_data = {
             "session_id": "partial_test_session",
             "segments": [
-                {"text": "Valid segment", "start_time": 0.0, "end_time": 1.0},
-                {"text": "", "start_time": 1.0, "end_time": 2.0},  # Empty text
-                {"text": "Another valid segment", "start_time": 2.0, "end_time": 3.0}
+                {"text": "Valid segment", "start_time": 0.0, "end_time": 1.0, "speaker_id": 1},
+                {"text": "", "start_time": 1.0, "end_time": 2.0},  # Empty text - missing speaker_id
+                {"text": "Another valid segment", "start_time": 2.0, "end_time": 3.0, "speaker_id": 2}
             ],
             "log_timestamp": datetime.now(UTC).isoformat() + "Z"
         }

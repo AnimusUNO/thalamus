@@ -103,7 +103,18 @@ def test_db(temp_db_path):
     
     # Cleanup
     if os.path.exists(temp_db_path):
-        os.remove(temp_db_path)
+        try:
+            # On Windows, there can be a delay before file handles are released
+            import time
+            time.sleep(0.1)
+            os.remove(temp_db_path)
+        except PermissionError:
+            # If we can't delete the file, it's likely still in use
+            # This is acceptable for test cleanup
+            pass
+        except Exception:
+            # Any other error during cleanup is also acceptable
+            pass
     os.environ.pop('THALAMUS_DB_PATH', None)
 
 

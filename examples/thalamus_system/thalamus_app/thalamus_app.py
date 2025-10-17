@@ -69,8 +69,13 @@ def process_event(event: Dict[str, Any]) -> None:
         # Process segments
         for segment in event['segments']:
             try:
-                # Determine speaker name (fallback if not provided)
-                speaker_id_value = int(segment.get('speaker_id'))
+                # Handle missing speaker_id gracefully
+                speaker_id_raw = segment.get('speaker_id')
+                if speaker_id_raw is None:
+                    logger.warning("Segment missing speaker_id, skipping: %s", segment.get('text', '')[:50])
+                    continue
+                
+                speaker_id_value = int(speaker_id_raw)
                 speaker_name = segment.get('speaker') or f"Speaker {speaker_id_value}"
                 db_speaker_id = get_or_create_speaker(
                     speaker_id=speaker_id_value,

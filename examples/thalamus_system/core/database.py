@@ -256,6 +256,11 @@ def migrate_database_schema() -> None:
             if session_id_is_text:
                 logger.info("Migrating raw_segments.session_id TEXT -> INTEGER FK ...")
                 cur.execute("PRAGMA foreign_keys=off")
+                
+                # Check if sessions table exists
+                cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'")
+                sessions_exists = cur.fetchone() is not None
+                
                 # Create new table
                 cur.execute('''
                     CREATE TABLE IF NOT EXISTS raw_segments_new (
@@ -270,17 +275,29 @@ def migrate_database_schema() -> None:
                         FOREIGN KEY (session_id) REFERENCES sessions (id)
                     )
                 ''')
+                
                 # Copy data with mapping from session string -> session PK
-                cur.execute('''
-                    INSERT INTO raw_segments_new (id, session_id, speaker_id, text, start_time, end_time, timestamp)
-                    SELECT rs.id,
-                           COALESCE(
-                               (SELECT s.id FROM sessions s WHERE s.session_id = rs.session_id),
-                               CASE WHEN rs.session_id GLOB '[0-9]*' THEN CAST(rs.session_id AS INTEGER) ELSE NULL END
-                           ) AS session_id,
-                           rs.speaker_id, rs.text, rs.start_time, rs.end_time, rs.timestamp
-                    FROM raw_segments rs
-                ''')
+                if sessions_exists:
+                    cur.execute('''
+                        INSERT INTO raw_segments_new (id, session_id, speaker_id, text, start_time, end_time, timestamp)
+                        SELECT rs.id,
+                               COALESCE(
+                                   (SELECT s.id FROM sessions s WHERE s.session_id = rs.session_id),
+                                   CASE WHEN rs.session_id GLOB '[0-9]*' THEN CAST(rs.session_id AS INTEGER) ELSE NULL END
+                               ) AS session_id,
+                               rs.speaker_id, rs.text, rs.start_time, rs.end_time, rs.timestamp
+                        FROM raw_segments rs
+                    ''')
+                else:
+                    # If no sessions table, just try to cast session_id to integer
+                    cur.execute('''
+                        INSERT INTO raw_segments_new (id, session_id, speaker_id, text, start_time, end_time, timestamp)
+                        SELECT rs.id,
+                               CASE WHEN rs.session_id GLOB '[0-9]*' THEN CAST(rs.session_id AS INTEGER) ELSE 1 END,
+                               rs.speaker_id, rs.text, rs.start_time, rs.end_time, rs.timestamp
+                        FROM raw_segments rs
+                    ''')
+                
                 # Swap tables
                 cur.execute("DROP TABLE raw_segments")
                 cur.execute("ALTER TABLE raw_segments_new RENAME TO raw_segments")
@@ -304,6 +321,11 @@ def migrate_database_schema() -> None:
                 if session_id_is_text_ref:
                     logger.info("Migrating refined_segments.session_id TEXT -> INTEGER FK ...")
                     cur.execute("PRAGMA foreign_keys=off")
+                    
+                    # Check if sessions table exists
+                    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='sessions'")
+                    sessions_exists = cur.fetchone() is not None
+                    
                     cur.execute('''
                         CREATE TABLE IF NOT EXISTS refined_segments_new (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -322,20 +344,37 @@ def migrate_database_schema() -> None:
                             FOREIGN KEY (session_id) REFERENCES sessions (id)
                         )
                     ''')
-                    cur.execute('''
-                        INSERT INTO refined_segments_new (
-                            id, session_id, refined_speaker_id, text, start_time, end_time,
-                            confidence_score, source_segments, metadata, last_update, is_processing, is_locked
-                        )
-                        SELECT r.id,
-                               COALESCE(
-                                   (SELECT s.id FROM sessions s WHERE s.session_id = r.session_id),
-                                   CASE WHEN r.session_id GLOB '[0-9]*' THEN CAST(r.session_id AS INTEGER) ELSE NULL END
-                               ) AS session_id,
-                               r.refined_speaker_id, r.text, r.start_time, r.end_time,
-                               r.confidence_score, r.source_segments, r.metadata, r.last_update, r.is_processing, r.is_locked
-                        FROM refined_segments r
-                    ''')
+                    
+                    # Copy data with mapping from session string -> session PK
+                    if sessions_exists:
+                        cur.execute('''
+                            INSERT INTO refined_segments_new (
+                                id, session_id, refined_speaker_id, text, start_time, end_time,
+                                confidence_score, source_segments, metadata, last_update, is_processing, is_locked
+                            )
+                            SELECT r.id,
+                                   COALESCE(
+                                       (SELECT s.id FROM sessions s WHERE s.session_id = r.session_id),
+                                       CASE WHEN r.session_id GLOB '[0-9]*' THEN CAST(r.session_id AS INTEGER) ELSE NULL END
+                                   ) AS session_id,
+                                   r.refined_speaker_id, r.text, r.start_time, r.end_time,
+                                   r.confidence_score, r.source_segments, r.metadata, r.last_update, r.is_processing, r.is_locked
+                            FROM refined_segments r
+                        ''')
+                    else:
+                        # If no sessions table, just try to cast session_id to integer
+                        cur.execute('''
+                            INSERT INTO refined_segments_new (
+                                id, session_id, refined_speaker_id, text, start_time, end_time,
+                                confidence_score, source_segments, metadata, last_update, is_processing, is_locked
+                            )
+                            SELECT r.id,
+                                   CASE WHEN r.session_id GLOB '[0-9]*' THEN CAST(r.session_id AS INTEGER) ELSE 1 END,
+                                   r.refined_speaker_id, r.text, r.start_time, r.end_time,
+                                   r.confidence_score, r.source_segments, r.metadata, r.last_update, r.is_processing, r.is_locked
+                            FROM refined_segments r
+                        ''')
+                    
                     cur.execute("DROP TABLE refined_segments")
                     cur.execute("ALTER TABLE refined_segments_new RENAME TO refined_segments")
                     cur.execute("CREATE INDEX IF NOT EXISTS idx_refined_segments_session_id ON refined_segments(session_id)")
@@ -635,7 +674,7 @@ def get_refined_segment(segment_id: int) -> Optional[Dict[str, Any]]:
             query = """
                 SELECT 
                     r.id,
-                    r.session_id AS session_id,
+                    se.session_id AS session_id,
                     r.refined_speaker_id,
                     r.text,
                     r.start_time,
@@ -644,6 +683,7 @@ def get_refined_segment(segment_id: int) -> Optional[Dict[str, Any]]:
                     r.source_segments,
                     r.metadata
                 FROM refined_segments r
+                JOIN sessions se ON r.session_id = se.id
                 WHERE r.id = ?
             """
             cur.execute(query, (segment_id,))
@@ -673,12 +713,13 @@ def get_active_sessions() -> List[Dict[str, Any]]:
         with get_db() as conn:
             cur = conn.cursor()
             query = """
-                SELECT DISTINCT rs.session_id, MIN(rs.timestamp) as created_at
+                SELECT DISTINCT se.session_id, MIN(rs.timestamp) as created_at
                 FROM raw_segments rs
+                JOIN sessions se ON rs.session_id = se.id
                 WHERE rs.id NOT IN (
                     SELECT raw_segment_id FROM segment_usage
                 )
-                GROUP BY rs.session_id
+                GROUP BY se.session_id
                 ORDER BY created_at DESC
             """
             cur.execute(query)
